@@ -100,7 +100,10 @@ select{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='htt
 .dl-control{display:flex;align-items:stretch;gap:4px;background:var(--surface);border:1px solid var(--border-strong);border-radius:12px;padding:5px;box-shadow:var(--shadow-sm)}
 .dl-seg{display:flex;align-items:center;gap:6px;padding:0 2px 0 12px}
 .dl-seg>span{font-size:10px;font-weight:800;color:var(--hint);text-transform:uppercase;letter-spacing:.4px}
-.dl-seg select{width:auto;min-width:118px;border:none;background:transparent;padding:8px 26px 8px 4px;font-weight:700;font-size:13px;box-shadow:none!important}
+.dl-seg select{width:auto;min-width:118px;border:none;background-color:transparent;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' stroke='%235b51f0' stroke-width='1.7' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 7px center;
+  padding:8px 26px 8px 6px;font-weight:700;font-size:13px;box-shadow:none!important;cursor:pointer}
 .dl-seg+.dl-seg{border-left:1px solid var(--border)}
 .btn-dl{font-size:13.5px;font-weight:800;font-family:var(--font);color:#fff;background:linear-gradient(135deg,var(--accent),#7b73f4);border:none;border-radius:9px;padding:0 22px;cursor:pointer;transition:filter .15s,box-shadow .2s}
 .btn-dl:hover{filter:brightness(1.06);box-shadow:0 6px 16px rgba(91,81,240,.3)}
@@ -243,6 +246,13 @@ header .logo{animation:floatLogo 4.5s ease-in-out infinite}
 .modal-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-md);padding:22px 24px;width:100%;max-width:540px;animation:popIn .26s ease}
 .modal-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .modal-head>.modal-acts{display:flex;gap:8px}
+/* 사용 가이드 */
+.guide{display:flex;flex-direction:column;gap:15px}
+.g-step{display:flex;gap:12px;align-items:flex-start}
+.g-num{width:25px;height:25px;border-radius:8px;background:var(--accent-soft);color:var(--accent);font-weight:800;font-size:12.5px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.g-step b{font-size:13.5px;font-weight:800}
+.g-step p{font-size:12.8px;color:var(--muted);line-height:1.62;margin-top:3px}
+.g-tip{margin-top:16px;font-size:12.5px;color:var(--muted);background:var(--surface-2);border:1px solid var(--border);border-radius:11px;padding:12px 14px;line-height:1.65}
 @media(prefers-reduced-motion:reduce){*{animation:none!important}}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -288,6 +298,7 @@ header .logo{animation:floatLogo 4.5s ease-in-out infinite}
   </div>
   <div class="userbar">
     <span id="userEmail"></span>
+    <button onclick="openHelp()">📖 사용 가이드</button>
     <button id="adminBtn" style="display:none" onclick="openAdmin()">👤 사용자 관리</button>
     <button onclick="doLogout()">로그아웃</button>
   </div>
@@ -413,6 +424,26 @@ header .logo{animation:floatLogo 4.5s ease-in-out infinite}
     </div>
     <div class="section-desc" style="margin:8px 0 14px">가입 요청을 승인하거나 취소할 수 있어요. (승인해야 카드뉴스 생성 가능)</div>
     <div id="userList" style="display:flex;flex-direction:column;gap:8px"></div>
+  </div>
+</div>
+
+<!-- 사용 가이드 모달 -->
+<div class="modal-overlay" id="helpModal" style="display:none" onclick="if(event.target===this)closeHelp()">
+  <div class="modal-card" style="max-width:600px">
+    <div class="modal-head">
+      <span class="section-title">📖 사용 가이드</span>
+      <div class="modal-acts"><button class="et-btn" onclick="closeHelp()">닫기 ✕</button></div>
+    </div>
+    <p class="section-desc" style="margin:8px 0 16px">AI가 주제만으로 그림+글이 들어간 카드뉴스를 만들어줘요. 아래 순서대로만 하면 돼요.</p>
+    <div class="guide">
+      <div class="g-step"><div class="g-num">1</div><div><b>주제 입력</b><p>‘주제 / 공지 내용’에 만들고 싶은 내용을 적어요. ‘핵심 강조 메시지’와 ‘생성 시 참고사항’은 선택이에요 (적으면 더 정확해져요).</p></div></div>
+      <div class="g-step"><div class="g-num">2</div><div><b>형태·스타일 선택</b><p>출력 형태(만화 / 단일 일러스트 / 텍스트만), 이미지 스타일, 컬러 테마, 슬라이드 수(2~10장)를 골라요.</p></div></div>
+      <div class="g-step"><div class="g-num">3</div><div><b>스토리 구성 (선택)</b><p>슬라이드별로 ‘그림으로 표현할 내용’과 ‘텍스트로 전달할 내용’, 톤을 지정할 수 있어요. 비워두면 AI가 알아서 구성해요.</p></div></div>
+      <div class="g-step"><div class="g-num">4</div><div><b>생성하기</b><p>‘✦ AI 카드뉴스 생성하기’를 누르면 글 → 이미지 순서로 만들어져요. 잠시 기다리면 결과가 아래에 나와요.</p></div></div>
+      <div class="g-step"><div class="g-num">5</div><div><b>수정하기</b><p>카드의 <b>글자를 클릭하면 바로 고칠 수 있어요</b> (수정 내용은 다운로드에도 반영). 이미지는 ‘🔄 이미지 다시 생성’으로 새로 뽑거나(원하는 내용을 입력칸에 적을 수 있어요), ‘🖼️ 교체’로 직접 올릴 수 있어요. ‹이전 / 다음›으로 슬라이드를 넘겨요.</p></div></div>
+      <div class="g-step"><div class="g-num">6</div><div><b>다운로드</b><p>‘대상(전체/현재 슬라이드)’과 ‘형식(이미지 / PDF / PPT)’을 고르고 [다운로드]를 눌러요. <b>모두 그림+글이 합쳐진 완결 카드뉴스</b> 형태로 저장돼요.</p></div></div>
+    </div>
+    <div class="g-tip">💡 <b>참고</b> · 생성된 이미지엔 우하단에 ‘AI 생성’ 표시가 자동으로 들어가요. · 가입은 회사 이메일(eland.co.kr)만 가능하고, 관리자 승인 후 사용할 수 있어요.</div>
   </div>
 </div>
 
@@ -605,6 +636,8 @@ function showApp(user, role){
 }
 function openAdmin(){ $('adminModal').style.display='flex'; loadUsers(); }
 function closeAdmin(){ $('adminModal').style.display='none'; }
+function openHelp(){ $('helpModal').style.display='flex'; }
+function closeHelp(){ $('helpModal').style.display='none'; }
 
 /* ── 관리자: 사용자 승인 관리 ── */
 function escapeHtml(s){ return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
@@ -1027,8 +1060,9 @@ function buildEditTools(idx){
   </div>`;
   if(!s.textOnly){
     html+=`<div class="et-row">
+      <input id="imgPromptInput" class="et-input" type="text" placeholder="바꾸고 싶은 그림 내용을 적고 '다시 생성' (비우면 기존 장면 그대로)">
       <button class="et-btn p" onclick="regenImage(${idx})">🔄 이미지 다시 생성</button>
-      <label class="et-btn" style="cursor:pointer">🖼️ 이미지 교체
+      <label class="et-btn" style="cursor:pointer">🖼️ 교체
         <input type="file" accept="image/*" style="display:none" onchange="replaceImage(${idx}, this.files[0])">
       </label>
     </div>`;
@@ -1040,6 +1074,8 @@ function buildEditTools(idx){
 async function regenImage(idx){
   const s=slides[idx];
   if(!s || s.textOnly) return;
+  const inp=$('imgPromptInput');
+  if(inp && inp.value.trim()) s.imgPrompt=inp.value.trim();   // 입력했으면 그 내용으로, 비우면 기존 장면 유지
   const styleBase=STYLE_MAP[$('imgStyle').value]||'clean modern illustration, simple character faces, soft colors';
   const framing=MODES[outputMode].framing;
   const planType=s._planType||s.type;
