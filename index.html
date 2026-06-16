@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 카드뉴스 생성기 — 이랜드이츠 RO실</title>
+<style>
+:root{
+  --bg:#f4f4f2; --surface:#ffffff; --surface-2:#fafaf8;
+  --border:#e7e5df; --border-strong:#dad7cf;
+  --text:#16161a; --muted:#6c6b66; --hint:#a6a59c;
+  --accent:#4f46e5; --accent-soft:#eef0fe; --accent-press:#3f37c9;
+  --ok:#1f9d63; --danger:#c0432a;
+  --radius:14px; --radius-sm:9px;
+  --shadow-sm:0 1px 2px rgba(20,20,26,.04),0 1px 3px rgba(20,20,26,.06);
+  --shadow-md:0 6px 24px rgba(20,20,26,.08);
+  --font:-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Pretendard','Noto Sans KR',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);font-family:var(--font);color:var(--text);line-height:1.5;padding:40px 24px 96px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1000px;margin:0 auto}
+
+/* ── Header ── */
+header{display:flex;align-items:center;gap:14px;margin-bottom:32px}
+.logo{width:40px;height:40px;border-radius:11px;background:linear-gradient(140deg,var(--accent),#8b84f5);display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;flex-shrink:0;box-shadow:var(--shadow-sm)}
+.head-text h1{font-size:19px;font-weight:700;letter-spacing:-.3px}
+.head-text p{font-size:13px;color:var(--muted);margin-top:2px}
+
+/* ── Cards / panels ── */
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-sm)}
+.section-title{font-size:13px;font-weight:700;letter-spacing:-.2px;color:var(--text)}
+.section-desc{font-size:12.5px;color:var(--muted)}
+
+/* ── API keys ── */
+.key-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px}
+.key-bar{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:11px 16px;box-shadow:var(--shadow-sm)}
+.key-bar label{font-size:12px;color:var(--muted);white-space:nowrap;font-weight:700}
+.key-bar input{flex:1;border:none;outline:none;font-size:13px;font-family:ui-monospace,SFMono-Regular,monospace;color:var(--text);background:transparent}
+.dot{width:8px;height:8px;border-radius:50%;background:#d4d2c8;flex-shrink:0;transition:background .2s}
+.dot.ok{background:var(--ok)}
+
+/* ── Form ── */
+.fg{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.fc{padding:20px}
+.fi{margin-bottom:16px}.fi:last-child{margin-bottom:0}
+.fl{display:block;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:7px}
+textarea,select,input[type=text],input[type=number]{width:100%;font-family:var(--font);font-size:14px;color:var(--text);background:var(--surface-2);border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:10px 12px;outline:none;transition:border-color .15s,box-shadow .15s;-webkit-appearance:none}
+textarea{resize:vertical;min-height:84px;line-height:1.65}
+textarea:focus,select:focus,input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);background:var(--surface)}
+select{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' stroke='%236c6b66' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px}
+
+/* segmented control (출력 형태) */
+.seg{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;background:var(--surface-2);border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:4px}
+.seg-btn{padding:9px 6px;border:none;background:transparent;border-radius:7px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;font-family:var(--font);transition:all .15s}
+.seg-btn:hover{color:var(--text)}
+.seg-btn.on{background:var(--surface);color:var(--accent);box-shadow:var(--shadow-sm)}
+
+/* ── Planner ── */
+.planner-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.planner-cols{display:grid;grid-template-columns:26px 84px 1fr 1fr 108px;gap:8px;padding:0 2px 8px;border-bottom:1px solid var(--border)}
+.planner-cols span{font-size:10.5px;font-weight:700;color:var(--hint);text-transform:uppercase;letter-spacing:.4px}
+.planner-rows{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.planner-row{display:grid;grid-template-columns:26px 84px 1fr 1fr 108px;gap:8px;align-items:center}
+.planner-row .pr-num{font-size:12px;font-weight:700;color:var(--hint);text-align:center}
+.planner-row select,.planner-row input{font-size:12.5px;padding:7px 9px;background:var(--surface-2)}
+.planner-row input::placeholder{color:var(--hint)}
+.dimmed{opacity:.4;pointer-events:none;transition:opacity .2s}
+
+/* ── Generate button ── */
+.gbtn{width:100%;height:50px;font-size:15px;font-weight:700;font-family:var(--font);background:var(--accent);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer;margin-top:18px;transition:background .15s,transform .05s;letter-spacing:-.2px;box-shadow:var(--shadow-sm)}
+.gbtn:hover{background:var(--accent-press)}
+.gbtn:active{transform:translateY(1px)}
+.gbtn:disabled{opacity:.45;cursor:not-allowed}
+
+/* ── Progress ── */
+.progress{display:none;margin-top:18px;padding:22px}
+.progress-title{font-size:13px;font-weight:700;margin-bottom:16px}
+.steps{display:flex;flex-direction:column;gap:10px}
+.step{display:flex;align-items:center;gap:11px;font-size:13px;color:var(--muted)}
+.step .icon{width:22px;height:22px;border-radius:50%;border:2px solid var(--border-strong);display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;transition:all .3s}
+.step.done .icon{background:var(--ok);border-color:var(--ok);color:#fff}
+.step.active .icon{border-color:var(--accent);color:var(--accent);animation:pulse 1s infinite}
+.step.active{color:var(--text);font-weight:600}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+.prog-bar{height:5px;background:var(--border);border-radius:3px;margin-top:16px;overflow:hidden}
+.prog-fill{height:100%;background:var(--accent);border-radius:3px;transition:width .4s ease;width:0%}
+
+.errbar{display:none;padding:12px 15px;background:#fdf1ed;color:var(--danger);border:1px solid #f3d6cc;border-radius:var(--radius-sm);font-size:13px;margin-top:12px;line-height:1.55}
+
+/* ── OUTPUT ── */
+.out{display:none;margin-top:36px}
+.oh{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px}
+.oh h2{font-size:16px;font-weight:700}
+.oacts{display:flex;gap:8px;flex-wrap:wrap}
+.abtn{padding:8px 15px;font-size:13px;font-weight:600;font-family:var(--font);border:1px solid var(--border-strong);border-radius:8px;background:var(--surface);color:var(--text);cursor:pointer;transition:background .12s,border-color .12s}
+.abtn:hover{background:var(--surface-2);border-color:var(--muted)}
+.abtn.p{background:var(--accent);color:#fff;border-color:var(--accent)}
+.abtn.p:hover{background:var(--accent-press)}
+
+/* ── VIEWER ── */
+.viewer{display:flex;gap:18px;align-items:flex-start}
+.thumbs{display:flex;flex-direction:column;gap:9px;flex-shrink:0;width:84px}
+.th{width:84px;height:84px;border-radius:9px;cursor:pointer;border:2px solid transparent;overflow:hidden;background:#edebe6;position:relative;transition:border-color .15s,transform .1s}
+.th:hover{transform:translateY(-1px)}
+.th.on{border-color:var(--accent)}
+.th img{width:100%;height:100%;object-fit:cover;display:block}
+.th .th-band{width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700}
+.th .th-overlay{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,.6));padding:5px 6px}
+.th .th-label{font-size:8px;font-weight:700;color:#fff}
+.th-loading{width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#f1efea}
+.th-spin{width:16px;height:16px;border:2px solid #ddd;border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.main-view{flex:1;min-width:0}
+.card-wrap{position:relative;border-radius:16px;overflow:hidden;background:#fff;box-shadow:var(--shadow-md);border:1px solid var(--border)}
+.card-inner{display:flex;flex-direction:column}
+.card-img{width:100%;aspect-ratio:16/9;object-fit:cover;display:block}
+.card-img-placeholder{width:100%;aspect-ratio:16/9;background:linear-gradient(135deg,#eceae4,#dcdacf);display:flex;align-items:center;justify-content:center}
+.card-img-placeholder .img-spin{width:28px;height:28px;border:3px solid #ccc;border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+.card-band{width:100%;aspect-ratio:21/9;display:flex;align-items:center;justify-content:center;color:#fff}
+.card-band span{font-size:13px;font-weight:700;letter-spacing:2px;opacity:.85;text-transform:uppercase}
+.card-text{padding:24px 26px 22px}
+
+.card-cover .card-text{background:linear-gradient(135deg,#1a1f6e,var(--accent));color:#fff}
+.card-cover .card-tag{font-size:11px;font-weight:700;letter-spacing:1.2px;opacity:.7;margin-bottom:10px}
+.card-cover .card-title{font-size:23px;font-weight:800;line-height:1.4;margin-bottom:9px;word-break:keep-all}
+.card-cover .card-sub{font-size:14px;opacity:.82;line-height:1.6;word-break:keep-all}
+.card-cover .card-sender{font-size:11px;opacity:.55;margin-top:14px;font-weight:500}
+
+.card-body-slide .card-text{background:#fff}
+.card-body-slide .card-scene{font-size:11px;font-weight:700;letter-spacing:.6px;color:var(--hint);margin-bottom:10px;text-transform:uppercase}
+.card-body-slide .card-title{font-size:19px;font-weight:800;line-height:1.4;margin-bottom:11px;word-break:keep-all;color:var(--text)}
+.card-body-slide .card-desc{font-size:14px;line-height:1.78;color:#46453f;word-break:keep-all}
+.card-body-slide .card-point{margin-top:15px;padding:13px 16px;border-radius:9px;font-size:13px;font-weight:600;line-height:1.5;word-break:keep-all}
+
+.card-end .card-text{background:linear-gradient(135deg,#0f3322,#1d7a52);color:#fff}
+.card-end .card-end-title{font-size:19px;font-weight:800;margin-bottom:15px;word-break:keep-all}
+.card-end .card-points{display:flex;flex-direction:column;gap:9px;margin-bottom:15px}
+.card-end .card-point-item{display:flex;align-items:flex-start;gap:11px}
+.card-end .point-num{width:21px;height:21px;border-radius:50%;background:rgba(255,255,255,.22);color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.card-end .point-text{font-size:13px;line-height:1.6;opacity:.92;word-break:keep-all}
+.card-end .card-cta{font-size:11px;opacity:.55;font-weight:500;margin-top:5px}
+
+.page-indicator{position:absolute;top:13px;right:15px;background:rgba(0,0,0,.4);color:#fff;font-size:11px;font-weight:600;padding:3px 11px;border-radius:12px}
+
+.toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%) translateY(8px);background:#16161a;color:#fff;font-size:13px;padding:10px 22px;border-radius:22px;opacity:0;transition:all .22s;pointer-events:none;white-space:nowrap;z-index:999;box-shadow:var(--shadow-md)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+@media(max-width:760px){
+  .fg,.key-grid{grid-template-columns:1fr}
+  .viewer{flex-direction:column;align-items:center}
+  .thumbs{flex-direction:row;width:auto;flex-wrap:wrap;justify-content:center}
+  .planner-cols{display:none}
+  .planner-row{grid-template-columns:1fr 1fr;gap:7px}
+  .planner-row .pr-num{grid-column:1/-1;text-align:left}
+}
+</style>
+<style>
+/* ── Auth gate ── */
+.auth-overlay{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:24px;z-index:1000}
+.auth-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-md);padding:34px 30px;width:100%;max-width:380px}
+.auth-logo{width:46px;height:46px;border-radius:12px;background:linear-gradient(140deg,var(--accent),#8b84f5);display:flex;align-items:center;justify-content:center;color:#fff;font-size:23px;margin-bottom:18px}
+.auth-card h2{font-size:18px;font-weight:800;letter-spacing:-.3px;margin-bottom:4px}
+.auth-card .sub{font-size:13px;color:var(--muted);margin-bottom:22px}
+.auth-card label{display:block;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 6px}
+.auth-card input{width:100%;font-size:14px;background:var(--surface-2);border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:11px 13px;outline:none;font-family:var(--font);transition:border-color .15s,box-shadow .15s}
+.auth-card input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);background:var(--surface)}
+.auth-btn{width:100%;height:46px;margin-top:20px;font-size:14px;font-weight:700;font-family:var(--font);background:var(--accent);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer;transition:background .15s}
+.auth-btn:hover{background:var(--accent-press)}
+.auth-btn:disabled{opacity:.5;cursor:not-allowed}
+.auth-switch{text-align:center;font-size:13px;color:var(--muted);margin-top:16px}
+.auth-switch a{color:var(--accent);font-weight:600;cursor:pointer;text-decoration:none}
+.auth-msg{font-size:12.5px;border-radius:8px;padding:10px 13px;margin-top:14px;line-height:1.5;display:none}
+.auth-msg.err{display:block;background:#fdf1ed;color:var(--danger);border:1px solid #f3d6cc}
+.auth-msg.ok{display:block;background:#e9f6ef;color:var(--ok);border:1px solid #c5e8d5}
+.userbar{display:flex;align-items:center;gap:10px;margin-left:auto;font-size:12.5px;color:var(--muted)}
+.userbar button{font-size:12px;font-weight:600;color:var(--muted);background:none;border:1px solid var(--border-strong);border-radius:7px;padding:6px 12px;cursor:pointer;font-family:var(--font)}
+.userbar button:hover{background:var(--surface-2);color:var(--text)}
+.app-hidden{display:none}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
+</head>
+<body>
+
+<!-- ════ Auth gate (로그인/회원가입) ════ -->
+<div class="auth-overlay" id="authOverlay">
+  <div class="auth-card">
+    <div class="auth-logo">✦</div>
+    <h2 id="authTitle">로그인</h2>
+    <p class="sub">AI 카드뉴스 생성기 · 이랜드이츠 RO실</p>
+    <label>이메일</label>
+    <input type="email" id="authEmail" placeholder="name@회사도메인" autocomplete="email">
+    <label>비밀번호</label>
+    <input type="password" id="authPw" placeholder="••••••••" autocomplete="current-password">
+    <button class="auth-btn" id="authBtn" onclick="doAuth()">로그인</button>
+    <div class="auth-msg" id="authMsg"></div>
+    <div class="auth-switch" id="authSwitch">
+      계정이 없으신가요? <a onclick="toggleAuthMode()">회원가입</a>
+    </div>
+  </div>
+</div>
+
+<div class="wrap app-hidden" id="app">
+<header>
+  <div class="logo">✦</div>
+  <div class="head-text">
+    <h1>AI 카드뉴스 생성기</h1>
+    <p>이랜드이츠 RO실</p>
+  </div>
+  <div class="userbar">
+    <span id="userEmail"></span>
+    <button onclick="doLogout()">로그아웃</button>
+  </div>
+</header>
+
+<!-- Main form -->
+<div class="fg">
+  <div class="fc panel">
+    <div class="fi"><label class="fl">주제 / 공지 내용 *</label>
+      <textarea id="topic" placeholder="예: 표시광고법 위반 사례와 주의사항&#10;마케팅팀 대상, 쉽고 임팩트 있게 전달하고 싶어요."></textarea>
+    </div>
+    <div class="fi"><label class="fl">핵심 강조 메시지 (선택)</label>
+      <textarea id="keymsg" placeholder="예: 근거 없는 1위 표현 절대 금지!" style="min-height:54px"></textarea>
+    </div>
+    <div class="fi"><label class="fl">생성 시 참고사항 (선택)</label>
+      <textarea id="refNotes" placeholder="생성기가 참고해야 할 사항을 자유롭게 적어주세요.&#10;예: 전문 용어는 쉽게 풀어쓰기 / 우리 회사는 외식 프랜차이즈 / 너무 딱딱하지 않게 / 특정 표현 금지 등" style="min-height:70px"></textarea>
+    </div>
+  </div>
+  <div class="fc panel">
+    <div class="fi"><label class="fl">출력 형태</label>
+      <div class="seg" id="modeSeg">
+        <button type="button" class="seg-btn on" data-mode="comic" onclick="setMode('comic')">만화</button>
+        <button type="button" class="seg-btn" data-mode="illust" onclick="setMode('illust')">단일 일러스트</button>
+        <button type="button" class="seg-btn" data-mode="text" onclick="setMode('text')">텍스트만</button>
+      </div>
+    </div>
+    <div class="fi"><label class="fl">브랜드 / 발신 부서</label>
+      <input type="text" id="brand" value="이랜드이츠 RO실">
+    </div>
+    <div class="fi" id="imgStyleField"><label class="fl">이미지 스타일</label>
+      <select id="imgStyle">
+        <option value="cute chibi cartoon characters, simple round faces, warm pastel colors, clean white background, webtoon illustration style, digital art">귀여운 웹툰풍 (치비 캐릭터)</option>
+        <option value="flat design cartoon characters, simple geometric faces, minimal illustration, soft colors, clean background, vector art style">플랫 일러스트 (심플 캐릭터)</option>
+        <option value="watercolor illustration, soft cartoon characters, gentle warm tones, cozy atmosphere, hand-drawn style, artistic">수채화 일러스트</option>
+        <option value="bold comic style cartoon characters, expressive simple faces, vibrant colors, dynamic composition, graphic novel illustration">코믹 만화 (역동적)</option>
+      </select>
+    </div>
+    <div class="fi"><label class="fl">컬러 테마</label>
+      <select id="theme">
+        <option value="blue">블루 (공식·신뢰)</option>
+        <option value="coral">코랄 (주의·경고)</option>
+        <option value="green">그린 (안내·친근)</option>
+        <option value="purple">퍼플 (교육·정보)</option>
+      </select>
+    </div>
+    <div class="fi"><label class="fl">슬라이드 수 (2~10장)</label>
+      <div style="display:flex;align-items:center;gap:10px">
+        <input type="number" id="slideCount" min="2" max="10" value="4" style="width:74px;text-align:center;font-weight:700" oninput="updatePlanner()">
+        <span style="font-size:13px;color:var(--muted)">장</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Story planner -->
+<div class="fc panel" style="margin-bottom:16px">
+  <div class="planner-head">
+    <div>
+      <span class="section-title">스토리 구성 플래너</span>
+      <span class="section-desc" style="margin-left:8px">슬라이드별로 <b>그림으로 표현할 내용</b>과 <b>텍스트로 전달할 내용</b>을 나눠 지정할 수 있어요 (비워두면 AI가 자동 구성)</span>
+    </div>
+    <button onclick="resetPlanner()" style="font-size:12px;color:var(--muted);background:none;border:none;cursor:pointer;text-decoration:underline">초기화</button>
+  </div>
+  <div class="planner-cols">
+    <span></span><span>타입</span>
+    <span class="planner-img">🎨 그림으로 표현</span>
+    <span>✍️ 텍스트로 표현</span>
+    <span>톤</span>
+  </div>
+  <div class="planner-rows" id="plannerRows"></div>
+</div>
+
+<button class="gbtn" id="gbtn" onclick="gen()">✦ AI 카드뉴스 생성하기</button>
+<div class="errbar" id="errbar"></div>
+
+<div class="progress panel" id="progress">
+  <div class="progress-title">생성 중...</div>
+  <div class="steps" id="steps"></div>
+  <div class="prog-bar"><div class="prog-fill" id="progFill"></div></div>
+</div>
+
+<div class="out" id="out">
+  <div class="oh">
+    <h2>생성된 카드뉴스</h2>
+    <div class="oacts">
+      <button class="abtn" onclick="copyAll()">텍스트 복사</button>
+      <button class="abtn" onclick="dlCurrent()">현재 이미지 저장</button>
+      <button class="abtn" onclick="dlAll()">이미지 ZIP</button>
+      <button class="abtn p" onclick="dlPPT()">PPT 다운로드</button>
+      <button class="abtn" onclick="gen()">다시 생성</button>
+    </div>
+  </div>
+  <div class="viewer">
+    <div class="thumbs" id="thumbs"></div>
+    <div class="main-view" id="mainView"></div>
+  </div>
+</div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ════════════════════════════════════════════════════════════════
+   설정값 (CONFIG)
+   ════════════════════════════════════════════════════════════════ */
+const CONFIG = {
+  // ── Supabase (공개 값 — 노출돼도 안전) ──
+  // ↓↓↓ Supabase 프로젝트 Settings → API 에서 복사해서 붙여넣기 ↓↓↓
+  supabaseUrl:     'https://pkqrjidmnpgrpccjtmqp.supabase.co',
+  supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBrcXJqaWRtbnBncnBjY2p0bXFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1ODg4NTIsImV4cCI6MjA5NzE2NDg1Mn0.yrlEyxZh3l11xPaELzXp6SP9CeJ1ijQPfqwQ3HV-aEo',
+
+  claudeModel:   'claude-sonnet-4-6',
+  claudeVersion: '2023-06-01',
+  claudeMaxTokens: 4000,
+
+  // 이미지 (dall-e-3/2 는 2026-03-04 폐기 → gpt-image 계열 사용)
+  imageModel:    'gpt-image-1',
+  imageSize:     '1024x1024',   // 1024x1024 / 1536x1024 / 1024x1536
+  imageQuality:  'medium',      // low / medium / high
+  imageConcurrency: 2,
+};
+
+/* ════════════════════════════════════════════════════════════════
+   상태 & 상수
+   ════════════════════════════════════════════════════════════════ */
+let slides=[], cur=0, outputMode='comic';
+
+const THEMES={
+  blue: {main:'#4f46e5',light:'#eef0fc',dark:'#1e2d8a',point:'#1e2d8a'},
+  coral:{main:'#d85a30',light:'#fdf0eb',dark:'#7a2e12',point:'#7a2e12'},
+  green:{main:'#1d7a52',light:'#e6f5ee',dark:'#085041',point:'#085041'},
+  purple:{main:'#7f77dd',light:'#f0effb',dark:'#3c3489',point:'#3c3489'},
+};
+
+// 출력 형태별 설정 (images: 이미지 생성 여부 / framing: 이미지 구도 지시)
+const MODES={
+  comic: {label:'만화',         images:true,  framing:'comic webtoon storytelling scene, expressive characters interacting, dynamic narrative composition'},
+  illust:{label:'단일 일러스트', images:true,  framing:'single clean modern illustration, one clear focal subject, simple balanced composition'},
+  text:  {label:'텍스트만',     images:false, framing:''},
+};
+
+const TYPE_OPTIONS=[
+  {v:'cover',  l:'표지'},{v:'problem',l:'문제제기'},{v:'cause',l:'원인분석'},
+  {v:'info',   l:'정보전달'},{v:'example',l:'사례'},{v:'caution',l:'주의사항'},
+  {v:'tip',    l:'팁·해결책'},{v:'summary',l:'정리'},{v:'end',l:'마무리'},
+];
+const TONE_OPTIONS=['자유롭게(AI 판단)','친근하게','공식적으로','유머러스하게','경고/강조','질문형','스토리텔링'];
+
+const STYLE_MAP={
+  'cute chibi cartoon characters, simple round faces, warm pastel colors, clean white background, webtoon illustration style, digital art': 'cute chibi illustration, simple cartoon faces, warm pastel colors, webtoon style, digital art',
+  'flat design cartoon characters, simple geometric faces, minimal illustration, soft colors, clean background, vector art style': 'flat design cartoon, simple geometric character faces, soft colors, vector illustration style',
+  'watercolor illustration, soft cartoon characters, gentle warm tones, cozy atmosphere, hand-drawn style, artistic': 'watercolor illustration style, soft cartoon characters, gentle warm tones, hand-drawn artistic style',
+  'bold comic style cartoon characters, expressive simple faces, vibrant colors, dynamic composition, graphic novel illustration': 'bold comic book style, expressive cartoon characters, vibrant colors, graphic novel illustration',
+};
+
+// imgPrompt가 없을 때 쓰는 타입별 기본 장면(보조용)
+const SCENE_TEMPLATES={
+  cover:'two cheerful cartoon office workers standing together, one holding a document folder, bright modern office',
+  problem:'cartoon character looking worried at a messy pile of documents on a desk, stressed expression, office',
+  cause:'cartoon character with a magnifying glass examining a document closely, thoughtful, office',
+  info:'cartoon character pointing at a presentation board with charts, explaining gesture, bright office',
+  example:'cartoon character comparing a document with a red X and another with a green check mark',
+  caution:'cartoon character with hands raised in a stop gesture, warning expression, red warning sign nearby',
+  tip:'cartoon character giving a thumbs up next to a glowing lightbulb, happy helpful expression',
+  summary:'cartoon character holding a clipboard checklist with check marks, satisfied smile',
+  end:'two cartoon characters high-fiving and celebrating, confetti falling, cheerful background',
+  body:'cartoon characters at an office working together with laptop and documents, productive scene',
+};
+
+/* ════════════════════════════════════════════════════════════════
+   헬퍼
+   ════════════════════════════════════════════════════════════════ */
+const $=id=>document.getElementById(id);
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const hex=c=>(c||'').replace('#','');
+
+async function mapLimit(items, limit, fn){
+  let idx=0;
+  async function worker(){ while(idx<items.length){ const i=idx++; await fn(items[i], i); } }
+  await Promise.all(Array.from({length:Math.min(limit,items.length)}, worker));
+}
+
+function getN(){return Math.min(10,Math.max(2,parseInt($('slideCount').value)||4))}
+
+/* ════════════════════════════════════════════════════════════════
+   출력 형태 (만화 / 일러스트 / 텍스트)
+   ════════════════════════════════════════════════════════════════ */
+function setMode(m){
+  outputMode=m;
+  document.querySelectorAll('.seg-btn').forEach(b=>b.classList.toggle('on', b.dataset.mode===m));
+  const textOnly = !MODES[m].images;
+  $('imgStyleField').style.display = textOnly ? 'none' : '';
+  document.querySelectorAll('.planner-img').forEach(el=>el.classList.toggle('dimmed', textOnly));
+}
+
+/* ════════════════════════════════════════════════════════════════
+   스토리 플래너
+   ════════════════════════════════════════════════════════════════ */
+function updatePlanner(){
+  const n=getN();
+  const rows=$('plannerRows');
+  const curLen=rows.querySelectorAll('.planner-row').length;
+  while(rows.children.length>n) rows.removeChild(rows.lastChild);
+  for(let i=curLen;i<n;i++) rows.appendChild(makePlannerRow(i,n));
+  rows.querySelectorAll('.pr-num').forEach((el,i)=>el.textContent=i+1);
+  if(!MODES[outputMode].images) document.querySelectorAll('.planner-img').forEach(el=>el.classList.add('dimmed'));
+}
+
+function makePlannerRow(i,total){
+  const div=document.createElement('div');
+  div.className='planner-row';
+  let defType='info';
+  if(i===0) defType='cover';
+  else if(i===total-1) defType='end';
+  else if(i===1) defType='problem';
+  else if(i===total-2) defType='summary';
+
+  const typeOpts=TYPE_OPTIONS.map(t=>`<option value="${t.v}"${t.v===defType?' selected':''}>${t.l}</option>`).join('');
+  const toneOpts=TONE_OPTIONS.map(t=>`<option>${t}</option>`).join('');
+
+  div.innerHTML=`
+    <div class="pr-num">${i+1}</div>
+    <select class="pr-type">${typeOpts}</select>
+    <input class="pr-img planner-img" type="text" placeholder="그림으로 보여줄 장면 (예: 직원이 광고문구 보고 놀람)">
+    <input class="pr-text" type="text" placeholder="텍스트로 전달할 핵심 내용">
+    <select class="pr-tone">${toneOpts}</select>`;
+  return div;
+}
+
+function resetPlanner(){
+  const n=getN();
+  const rows=$('plannerRows');
+  rows.innerHTML='';
+  for(let i=0;i<n;i++) rows.appendChild(makePlannerRow(i,n));
+  if(!MODES[outputMode].images) document.querySelectorAll('.planner-img').forEach(el=>el.classList.add('dimmed'));
+}
+
+function getPlannerData(){
+  return [...document.querySelectorAll('.planner-row')].map((row,i)=>({
+    idx:i+1,
+    type:row.querySelector('.pr-type').value,
+    imgContent:row.querySelector('.pr-img').value.trim(),
+    textContent:row.querySelector('.pr-text').value.trim(),
+    tone:row.querySelector('.pr-tone').value,
+  }));
+}
+
+document.addEventListener('DOMContentLoaded',()=>updatePlanner());
+
+/* ════════════════════════════════════════════════════════════════
+   진행 표시
+   ════════════════════════════════════════════════════════════════ */
+/* ════════════════════════════════════════════════════════════════
+   인증 (로그인 / 회원가입 / 로그아웃)
+   ════════════════════════════════════════════════════════════════ */
+let sb=null, authMode='login';
+
+function initAuth(){
+  if(CONFIG.supabaseUrl.includes('YOUR-PROJECT')){
+    authMsg('Supabase 설정이 아직 안 됐어요. index.html의 CONFIG에 supabaseUrl / supabaseAnonKey를 넣어주세요.', 'err');
+    return;
+  }
+  sb = supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseAnonKey);
+  // 이미 로그인돼 있으면 바로 앱으로
+  sb.auth.getSession().then(({data:{session}})=>{ if(session) showApp(session.user); });
+  sb.auth.onAuthStateChange((_e, session)=>{ if(session) showApp(session.user); });
+}
+
+function showApp(user){
+  $('authOverlay').style.display='none';
+  $('app').classList.remove('app-hidden');
+  $('userEmail').textContent = user?.email || '';
+}
+
+function authMsg(text, kind){
+  const m=$('authMsg'); m.textContent=text; m.className='auth-msg '+(kind||'');
+}
+
+function toggleAuthMode(){
+  authMode = authMode==='login' ? 'signup' : 'login';
+  const login = authMode==='login';
+  $('authTitle').textContent = login ? '로그인' : '회원가입';
+  $('authBtn').textContent   = login ? '로그인' : '회원가입';
+  $('authSwitch').innerHTML  = login
+    ? '계정이 없으신가요? <a onclick="toggleAuthMode()">회원가입</a>'
+    : '이미 계정이 있으신가요? <a onclick="toggleAuthMode()">로그인</a>';
+  authMsg('', '');
+}
+
+async function doAuth(){
+  if(!sb){ initAuth(); if(!sb) return; }
+  const email=$('authEmail').value.trim();
+  const pw=$('authPw').value;
+  if(!email || !pw){ authMsg('이메일과 비밀번호를 입력해 주세요.', 'err'); return; }
+  $('authBtn').disabled=true;
+  try{
+    if(authMode==='signup'){
+      const { error } = await sb.auth.signUp({ email, password:pw });
+      if(error) throw error;
+      authMsg('가입 확인 메일을 보냈어요. 메일의 링크를 클릭하면 로그인할 수 있어요.', 'ok');
+    }else{
+      const { error } = await sb.auth.signInWithPassword({ email, password:pw });
+      if(error) throw error;
+      // onAuthStateChange 가 showApp 호출
+    }
+  }catch(e){
+    let msg=e.message||String(e);
+    if(/allowed_domain_only|Database error/i.test(msg)) msg='회사 이메일 도메인으로만 가입할 수 있어요.';
+    else if(/Invalid login/i.test(msg)) msg='이메일 또는 비밀번호가 올바르지 않아요.';
+    else if(/already registered/i.test(msg)) msg='이미 가입된 이메일이에요. 로그인해 주세요.';
+    authMsg(msg, 'err');
+  }finally{
+    $('authBtn').disabled=false;
+  }
+}
+
+async function doLogout(){
+  if(sb) await sb.auth.signOut();
+  location.reload();
+}
+
+document.addEventListener('DOMContentLoaded', initAuth);
+function buildSteps(labels){
+  $('steps').innerHTML=labels.map((l,i)=>`<div class="step"><div class="icon">${i+1}</div><span>${l}</span></div>`).join('');
+}
+function setStep(idx){
+  const steps=[...document.querySelectorAll('.step')];
+  steps.forEach((el,i)=>{el.classList.remove('active','done');if(i<idx)el.classList.add('done');else if(i===idx)el.classList.add('active');});
+  $('progFill').style.width=(steps.length?idx/steps.length*100:0)+'%';
+}
+
+/* ════════════════════════════════════════════════════════════════
+   API
+   ════════════════════════════════════════════════════════════════ */
+// Edge Function 호출 헬퍼 — 로그인 토큰을 실어서 백엔드로 보냄 (API 키는 백엔드에만 있음)
+async function callFn(name, payload){
+  const { data:{ session } } = await sb.auth.getSession();
+  if(!session) throw new Error('로그인이 만료됐어요. 새로고침 후 다시 로그인해 주세요.');
+  const res = await fetch(`${CONFIG.supabaseUrl}/functions/v1/${name}`,{
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'Authorization':'Bearer '+session.access_token,
+      'apikey':CONFIG.supabaseAnonKey,
+    },
+    body:JSON.stringify(payload),
+  });
+  const data = await res.json().catch(()=>({}));
+  if(!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
+}
+
+async function genSlidesText(prompt){
+  const cd = await callFn('claude', {
+    prompt, model:CONFIG.claudeModel, max_tokens:CONFIG.claudeMaxTokens,
+  });
+  if(cd.error) throw new Error('Claude: '+(cd.error.message||cd.error));
+  const txt=(cd.content||[]).map(i=>i.text||'').join('').replace(/```json|```/g,'').trim();
+  try{ return JSON.parse(txt); }
+  catch{ throw new Error('Claude 응답을 JSON으로 해석하지 못했습니다. 다시 시도해 주세요.'); }
+}
+
+async function genImage(prompt){
+  const id = await callFn('image', {
+    prompt, model:CONFIG.imageModel, size:CONFIG.imageSize, quality:CONFIG.imageQuality,
+  });
+  if(id.error) throw new Error(id.error.message||id.error);
+  if(id.data?.[0]?.b64_json) return 'data:image/png;base64,'+id.data[0].b64_json;
+  if(id.data?.[0]?.url) return id.data[0].url;
+  throw new Error('이미지 데이터가 비어 있습니다');
+}
+
+function buildImgPrompt(slide, planType, styleBase, framing){
+  const custom = slide.imgPrompt && slide.imgPrompt.trim();
+  const base = custom || SCENE_TEMPLATES[planType] || SCENE_TEMPLATES[slide.type] || SCENE_TEMPLATES.body;
+  return `${base}. ${framing}. Style: ${styleBase}. No text, no words, no letters in the image.`;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   메인 생성
+   ════════════════════════════════════════════════════════════════ */
+async function gen(){
+  const topic=$('topic').value.trim();
+  const mode=MODES[outputMode];
+  $('errbar').style.display='none';
+  if(!topic){showErr('주제를 입력해 주세요.');return}
+
+  $('gbtn').disabled=true;
+  $('out').style.display='none';
+  const stepLabels = mode.images
+    ? ['콘텐츠 구성 중 (Claude)','이미지 장면 설계','이미지 생성 중','카드 조합 중']
+    : ['콘텐츠 구성 중 (Claude)','카드 조합 중'];
+  buildSteps(stepLabels);
+  $('progress').style.display='block';
+  setStep(0);
+
+  try{
+    const N=getN();
+    const brand=$('brand').value.trim()||'이랜드이츠 RO실';
+    const keymsg=$('keymsg').value.trim();
+    const refNotes=$('refNotes').value.trim();
+    const styleBase=STYLE_MAP[$('imgStyle').value]||'clean modern illustration, simple character faces, soft colors';
+    const planData=getPlannerData();
+    const useImg=mode.images;
+
+    // 플래너 → 지시문
+    const planInstructions=planData.map(p=>{
+      const typeLabel=TYPE_OPTIONS.find(t=>t.v===p.type)?.l||p.type;
+      let line=`■ 슬라이드${p.idx} [${typeLabel}]`;
+      if(useImg) line+=`\n   - 그림으로 표현할 내용: ${p.imgContent||'(주제·흐름에 맞게 AI 자동)'}`;
+      line+=`\n   - 텍스트로 전달할 내용: ${p.textContent||'(주제·흐름에 맞게 AI 자동)'}`;
+      if(p.tone&&p.tone!=='자유롭게(AI 판단)') line+=`\n   - 톤: ${p.tone}`;
+      return line;
+    }).join('\n');
+
+    // JSON 예시
+    const jsonExample=planData.map(p=>{
+      const img = useImg ? `,"imgPrompt":"English description of the ${MODES[outputMode].label==='만화'?'comic':'illustration'} scene to draw for this slide — concrete situation, characters, action, emotion"` : '';
+      if(p.type==='cover') return `  {"type":"cover","title":"제목(20자이내)","subtitle":"부제(35자이내)","scene":"표지 장면 한 줄(한국어)"${img}}`;
+      if(p.type==='end') return `  {"type":"end","title":"마무리 제목(15자이내)","points":["핵심1(20자)","핵심2(20자)","핵심3(20자)"],"cta":"${brand}","scene":"마무리 장면 한 줄(한국어)"${img}}`;
+      return `  {"type":"body","scene":"장면 한 줄(한국어)","title":"소제목(15자이내)","desc":"본문 2-3문장","point":"핵심 포인트(25자이내)"${img}}`;
+    }).join(',\n');
+
+    const imgRules = useImg ? `
+- imgPrompt는 영어로, 이 슬라이드를 그림으로 보여주는 ${mode.label} 장면 묘사
+  · '그림으로 표현할 내용'에 지정된 내용을 그대로 시각화
+  · 상황·등장인물의 행동·표정을 구체적으로, 슬라이드마다 서로 다르게
+  · 캐릭터 한 명이 그냥 서 있는 식의 단조로운 묘사 금지
+  · 그림 안에 글자/텍스트는 절대 넣지 말 것` : '';
+
+    const claudePrompt=`카드뉴스 ${N}장을 JSON 배열로만 반환해줘. 마크다운/설명 없이 JSON만.
+
+주제: ${topic}
+핵심 메시지: ${keymsg||'없음'}
+발신: ${brand}
+출력 형태: ${mode.label}${refNotes?`\n\n[생성 시 참고사항 — 반드시 반영]\n${refNotes}`:''}
+
+아래 스토리 구성을 반드시 따라줘:
+${planInstructions}
+
+JSON 형식 (정확히 ${N}개):
+[
+${jsonExample}
+]
+
+규칙:
+- scene은 한국어로 슬라이드 상황을 한 줄로 (카드에 표시됨)
+- '텍스트로 전달할 내용'이 지정된 슬라이드는 그 내용을 본문(title/desc/point 등)에 반영${imgRules}
+- 지정 안 된 부분은 주제와 전체 흐름에 맞게 자연스럽게 작성
+- 톤이 지정된 경우 해당 톤으로 텍스트 작성`;
+
+    // 1) 텍스트
+    slides=await genSlidesText(claudePrompt);
+    slides.forEach(s=>{ s.textOnly = !useImg; });
+
+    if(useImg){
+      setStep(1); await sleep(250); setStep(2);
+      renderThumbs();
+      $('out').style.display='block';
+      $('out').scrollIntoView({behavior:'smooth',block:'start'});
+
+      await mapLimit(slides, CONFIG.imageConcurrency, async (s,i)=>{
+        try{
+          const planType=planData[i]?.type||s.type;
+          const prompt=buildImgPrompt(s, planType, styleBase, mode.framing);
+          console.log(`슬라이드${i+1} 이미지 프롬프트:`, prompt);
+          slides[i].imgUrl=await genImage(prompt);
+          updateThumb(i, s);
+        }catch(e){
+          slides[i].imgUrl=null; slides[i].imgError=e.message;
+          console.error(`슬라이드${i+1} 이미지 실패:`, e.message);
+          const th=$('thumb-'+i);
+          if(th) th.innerHTML=`<div class="th-loading" style="font-size:9px;color:var(--danger);padding:4px;text-align:center">오류</div>`;
+        }
+      });
+      setStep(3); await sleep(250);
+    } else {
+      renderThumbs();
+      $('out').style.display='block';
+      $('out').scrollIntoView({behavior:'smooth',block:'start'});
+      setStep(1); await sleep(250);
+    }
+
+    renderThumbs();
+    renderMain(cur);
+    $('progFill').style.width='100%';
+    $('progress').style.display='none';
+
+    if(useImg && slides.every(s=>!s.imgUrl)){
+      showErr('텍스트는 생성됐지만 이미지가 모두 실패했어요. F12 → Console의 "이미지 오류 상세"를 확인해 주세요. (흔한 원인: OpenAI 결제 미등록·잔액 부족, gpt-image-1 조직 본인인증 필요)');
+    }
+  }catch(e){
+    showErr('오류: '+e.message);
+    $('progress').style.display='none';
+  }finally{
+    $('gbtn').disabled=false;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   렌더링
+   ════════════════════════════════════════════════════════════════ */
+function thLabel(type){
+  if(type==='cover') return '표지';
+  if(type==='end') return '마무리';
+  return TYPE_OPTIONS.find(t=>t.v===type)?.l||'본문';
+}
+function bandColor(){const t=THEMES[$('theme').value]||THEMES.blue;return `linear-gradient(135deg,${t.dark},${t.main})`;}
+
+function thumbInnerHTML(s,i){
+  if(s.imgUrl) return `<img src="${s.imgUrl}" alt="슬라이드${i+1}"><div class="th-overlay"><div class="th-label">${thLabel(s.type)}</div></div>`;
+  if(s.textOnly) return `<div class="th-band" style="background:${bandColor()}">${thLabel(s.type)}</div>`;
+  return `<div class="th-loading"><div class="th-spin"></div></div>`;
+}
+function updateThumb(i,s){const th=$('thumb-'+i);if(th)th.innerHTML=thumbInnerHTML(s,i);}
+
+function renderThumbs(){
+  const thumbs=$('thumbs');
+  thumbs.innerHTML='';
+  slides.forEach((s,i)=>{
+    const th=document.createElement('div');
+    th.className='th'+(i===cur?' on':'');
+    th.id='thumb-'+i;
+    th.innerHTML=thumbInnerHTML(s,i);
+    th.onclick=()=>{cur=i;renderThumbs();renderMain(i)};
+    thumbs.appendChild(th);
+  });
+}
+
+function renderMain(idx){
+  const theme=THEMES[$('theme').value]||THEMES.blue;
+  const mv=$('mainView');
+  mv.innerHTML='';
+  const card=document.createElement('div');
+  card.className='card-wrap';
+  card.innerHTML=buildCardHTML(slides[idx],idx,theme);
+  mv.appendChild(card);
+}
+
+function buildCardHTML(s,idx,theme){
+  let imgEl;
+  if(s.textOnly) imgEl=`<div class="card-band" style="background:${bandColor()}"><span>${thLabel(s.type)}</span></div>`;
+  else if(s.imgUrl) imgEl=`<img class="card-img" src="${s.imgUrl}" alt="슬라이드 이미지">`;
+  else imgEl=`<div class="card-img-placeholder"><div class="img-spin"></div></div>`;
+
+  const pageEl=`<div class="page-indicator">${idx+1} / ${slides.length}</div>`;
+  const brand=$('brand').value||'이랜드이츠 RO실';
+
+  if(s.type==='cover'){
+    return `<div class="card-inner card-cover">${imgEl}
+<div class="card-text">
+  <div class="card-tag">CARD NEWS · ${brand}</div>
+  <div class="card-title" contenteditable="true" spellcheck="false">${s.title||''}</div>
+  <div class="card-sub" contenteditable="true" spellcheck="false">${s.subtitle||''}</div>
+  <div class="card-sender">${brand}</div>
+</div></div>${pageEl}`;
+  }
+  if(s.type==='end'){
+    const pts=(s.points||[]).map((p,i)=>`<div class="card-point-item"><div class="point-num">${i+1}</div><div class="point-text">${p}</div></div>`).join('');
+    return `<div class="card-inner card-end">${imgEl}
+<div class="card-text">
+  <div class="card-end-title" contenteditable="true" spellcheck="false">${s.title||'오늘의 핵심 정리'}</div>
+  <div class="card-points">${pts}</div>
+  <div class="card-cta">${s.cta||brand}</div>
+</div></div>${pageEl}`;
+  }
+  return `<div class="card-inner card-body-slide">${imgEl}
+<div class="card-text">
+  <div class="card-scene">${s.scene||''}</div>
+  <div class="card-title" contenteditable="true" spellcheck="false">${s.title||''}</div>
+  <div class="card-desc" contenteditable="true" spellcheck="false">${s.desc||''}</div>
+  ${s.point?`<div class="card-point" style="background:${theme.light};border-left:3px solid ${theme.main};color:${theme.point}" contenteditable="true" spellcheck="false">💡 ${s.point}</div>`:''}
+</div></div>${pageEl}`;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   다운로드 / 복사
+   ════════════════════════════════════════════════════════════════ */
+async function imgToBlob(url){
+  return new Promise((resolve,reject)=>{
+    const img=new Image();
+    img.crossOrigin='anonymous';
+    img.onload=()=>{
+      const c=document.createElement('canvas');
+      c.width=img.naturalWidth;c.height=img.naturalHeight;
+      c.getContext('2d').drawImage(img,0,0);
+      c.toBlob(b=>b?resolve(b):reject(new Error('canvas 변환 실패')),'image/jpeg',0.92);
+    };
+    img.onerror=()=>reject(new Error('이미지 로드 실패'));
+    img.src=url;
+  });
+}
+
+async function dlCurrent(){
+  const s=slides[cur];
+  if(!s?.imgUrl){showToast('이 슬라이드에는 저장할 이미지가 없어요');return}
+  try{
+    showToast('다운로드 준비 중...');
+    const blob=await imgToBlob(s.imgUrl);
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+    const label=s.type==='cover'?'표지':s.type==='end'?'마무리':`슬라이드${cur+1}`;
+    a.download=`카드뉴스_${label}.jpg`;a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),3000);
+    showToast(`${label} 저장 완료!`);
+  }catch(e){ window.open(s.imgUrl,'_blank'); showToast('새 탭에서 이미지를 우클릭 → 저장해 주세요'); }
+}
+
+function slidesToText(){
+  return slides.map((s,i)=>{
+    let o=`[${i+1}/${slides.length}] ${s.type==='cover'?'표지':s.type==='end'?'마무리':'본문'}\n`;
+    if(s.title) o+=`제목: ${s.title}\n`;
+    if(s.subtitle) o+=`부제: ${s.subtitle}\n`;
+    if(s.desc) o+=`내용: ${s.desc}\n`;
+    if(s.point) o+=`포인트: ${s.point}\n`;
+    if(s.points) o+=`핵심: ${s.points.join(' / ')}\n`;
+    return o.trim();
+  }).join('\n\n');
+}
+
+async function dlAll(){
+  if(slides.every(s=>!s.imgUrl)){showToast('저장할 이미지가 없어요 (텍스트만 모드는 PPT로 받으세요)');return}
+  showToast('ZIP 압축 중...');
+  try{
+    const zip=new JSZip();
+    const folder=zip.folder('카드뉴스');
+    await Promise.all(slides.map(async(s,i)=>{
+      if(!s.imgUrl) return;
+      const label=s.type==='cover'?'01_표지':s.type==='end'?`${String(i+1).padStart(2,'0')}_마무리`:`${String(i+1).padStart(2,'0')}_슬라이드`;
+      try{ folder.file(`${label}.jpg`, await imgToBlob(s.imgUrl)); }
+      catch{ folder.file(`${label}_url.txt`, s.imgUrl); }
+    }));
+    folder.file('텍스트_전체.txt', slidesToText());
+    const blob=await zip.generateAsync({type:'blob'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+    a.download=`카드뉴스_${new Date().toISOString().slice(0,10)}.zip`;a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+    showToast('ZIP 다운로드 완료!');
+  }catch(e){ showToast('ZIP 오류: '+e.message); }
+}
+
+// ── PPT (그림 + 텍스트) ──
+async function dlPPT(){
+  if(!slides.length){showToast('먼저 카드뉴스를 생성해 주세요');return}
+  if(typeof PptxGenJS==='undefined'){showToast('PPT 모듈을 불러오지 못했어요 (인터넷 연결 확인)');return}
+  showToast('PPT 만드는 중...');
+  try{
+    const theme=THEMES[$('theme').value]||THEMES.blue;
+    const accent=hex(theme.main), dark=hex(theme.dark), light=hex(theme.light);
+    const brand=$('brand').value||'이랜드이츠 RO실';
+    const pptx=new PptxGenJS();
+    pptx.defineLayout({name:'CN',width:10,height:5.625});
+    pptx.layout='CN';
+
+    slides.forEach((s,i)=>{
+      const slide=pptx.addSlide();
+      slide.background={color:'FFFFFF'};
+      const imgH=3.05, hasImg=!!s.imgUrl;
+
+      if(hasImg){
+        slide.addImage({data:s.imgUrl,x:0,y:0,w:10,h:imgH,sizing:{type:'cover',w:10,h:imgH}});
+      }else{
+        slide.addShape(pptx.ShapeType.rect,{x:0,y:0,w:10,h:imgH,fill:{color:accent}});
+        slide.addText(thLabelEng(s.type),{x:0,y:0,w:10,h:imgH,align:'center',valign:'middle',color:'FFFFFF',fontSize:26,bold:true,charSpacing:2});
+      }
+      slide.addText(`${i+1} / ${slides.length}`,{x:8.7,y:0.12,w:1.2,h:0.3,fontSize:10,color:'FFFFFF',align:'right'});
+
+      const ty=imgH+0.22;
+      if(s.type==='cover'){
+        slide.addText(s.title||'',{x:0.55,y:ty,w:8.9,h:0.8,fontSize:26,bold:true,color:dark,valign:'top'});
+        slide.addText(s.subtitle||'',{x:0.55,y:ty+0.82,w:8.9,h:0.7,fontSize:15,color:'555555',valign:'top'});
+        slide.addText(brand,{x:0.55,y:5.18,w:8.9,h:0.35,fontSize:10,color:'9a9a9a'});
+      }else if(s.type==='end'){
+        slide.addText(s.title||'오늘의 핵심 정리',{x:0.55,y:ty,w:8.9,h:0.6,fontSize:22,bold:true,color:dark});
+        const pts=(s.points||[]).map(p=>({text:p,options:{bullet:{code:'2022'},fontSize:14,color:'383838',paraSpaceAfter:8}}));
+        slide.addText(pts.length?pts:[{text:'—'}],{x:0.7,y:ty+0.72,w:8.6,h:1.5,valign:'top'});
+        slide.addText(s.cta||brand,{x:0.55,y:5.18,w:8.9,h:0.35,fontSize:10,color:'9a9a9a'});
+      }else{
+        if(s.scene) slide.addText(String(s.scene).toUpperCase(),{x:0.55,y:ty,w:8.9,h:0.3,fontSize:10.5,bold:true,color:accent,charSpacing:1});
+        slide.addText(s.title||'',{x:0.55,y:ty+0.32,w:8.9,h:0.55,fontSize:20,bold:true,color:'1A1A1A',valign:'top'});
+        slide.addText(s.desc||'',{x:0.55,y:ty+0.92,w:8.9,h:1.0,fontSize:13,color:'444444',lineSpacingMultiple:1.25,valign:'top'});
+        if(s.point) slide.addText('💡  '+s.point,{x:0.55,y:5.0,w:8.9,h:0.5,fontSize:12,bold:true,color:dark,fill:{color:light},align:'left',valign:'middle',margin:6});
+      }
+    });
+
+    await pptx.writeFile({fileName:`카드뉴스_${new Date().toISOString().slice(0,10)}.pptx`});
+    showToast('PPT 다운로드 완료!');
+  }catch(e){ console.error('PPT 오류:',e); showToast('PPT 오류: '+e.message); }
+}
+function thLabelEng(type){return type==='cover'?'COVER':type==='end'?'SUMMARY':'CARD NEWS';}
+
+function copyAll(){ navigator.clipboard.writeText(slidesToText()).then(()=>showToast('클립보드에 복사됐어요')); }
+
+/* ════════════════════════════════════════════════════════════════
+   알림
+   ════════════════════════════════════════════════════════════════ */
+function showErr(m){const e=$('errbar');e.textContent=m;e.style.display='block';console.error('오류:',m)}
+function showToast(m){const t=$('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200)}
+</script>
+</body>
+</html>
