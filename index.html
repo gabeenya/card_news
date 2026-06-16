@@ -178,6 +178,62 @@ select{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='htt
 .userbar button:hover{background:var(--surface-2);color:var(--text)}
 .app-hidden{display:none}
 </style>
+<style>
+/* ════ 디자인 폴리시 & 애니메이션 ════ */
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes cardIn{from{opacity:0;transform:translateY(8px) scale(.985)}to{opacity:1;transform:none}}
+@keyframes popIn{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:scale(1)}}
+@keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+@keyframes floatLogo{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+
+#app{animation:fadeIn .45s ease}
+header .logo{animation:floatLogo 4.5s ease-in-out infinite}
+
+.fc.panel{transition:box-shadow .22s ease,transform .22s ease,border-color .22s}
+.fc.panel:hover{box-shadow:var(--shadow-md);border-color:var(--border-strong)}
+
+.gbtn{background:linear-gradient(135deg,var(--accent),#6f67ef);background-size:170% 170%;transition:background-position .45s ease,transform .06s,box-shadow .22s}
+.gbtn:hover{background-position:100% 0;box-shadow:0 8px 22px rgba(79,70,229,.30)}
+.auth-btn{background:linear-gradient(135deg,var(--accent),#6f67ef);transition:filter .15s,box-shadow .2s,transform .06s}
+.auth-btn:hover{filter:brightness(1.04);box-shadow:0 6px 18px rgba(79,70,229,.26)}
+
+.abtn{transition:background .12s,border-color .12s,transform .1s,box-shadow .12s}
+.abtn:hover{transform:translateY(-1px)}
+.abtn.p:hover{box-shadow:0 6px 16px rgba(79,70,229,.26)}
+
+.auth-card{animation:popIn .32s ease}
+.card-wrap{animation:cardIn .34s cubic-bezier(.2,.7,.2,1)}
+
+.th{transition:border-color .15s,transform .12s,box-shadow .12s}
+.th:hover{transform:translateY(-2px);box-shadow:var(--shadow-sm)}
+.th.on{box-shadow:0 0 0 3px var(--accent-soft)}
+
+.out{animation:fadeUp .42s ease}
+.progress{animation:fadeUp .3s ease}
+.errbar{animation:fadeUp .25s ease}
+.prog-fill{background:linear-gradient(90deg,var(--accent),#8b84f5,var(--accent));background-size:200% 100%;animation:shimmer 1.4s linear infinite}
+.seg-btn{transition:all .18s}
+
+/* 인라인 편집 가능 영역 표시 */
+[contenteditable=true]{border-radius:6px;outline:none;transition:box-shadow .15s,background .15s}
+[contenteditable=true]:hover{box-shadow:0 0 0 2px var(--accent-soft)}
+[contenteditable=true]:focus{box-shadow:0 0 0 2px var(--accent)}
+.card-cover [contenteditable=true]:hover,.card-end [contenteditable=true]:hover{box-shadow:0 0 0 2px rgba(255,255,255,.45)}
+
+/* 생성물 추가 수정 툴바 */
+.edit-tools{margin-top:14px;display:flex;flex-direction:column;gap:9px;animation:fadeUp .3s ease}
+.et-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.et-nav{justify-content:space-between}
+.et-hint{font-size:12px;color:var(--hint);flex:1;text-align:center;min-width:140px}
+.et-input{flex:1;min-width:180px;font-size:13px;background:var(--surface-2);border:1px solid var(--border-strong);border-radius:8px;padding:9px 11px;font-family:var(--font);color:var(--text)}
+.et-input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);background:var(--surface)}
+.et-btn{font-size:12.5px;font-weight:600;color:var(--text);background:var(--surface);border:1px solid var(--border-strong);border-radius:8px;padding:8px 13px;cursor:pointer;font-family:var(--font);transition:background .12s,border-color .12s,transform .1s}
+.et-btn:hover{background:var(--surface-2);border-color:var(--muted);transform:translateY(-1px)}
+.et-btn.p{background:var(--accent);color:#fff;border-color:var(--accent)}
+.et-btn.p:hover{background:var(--accent-press)}
+@media(prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
@@ -666,6 +722,44 @@ function buildImgPrompt(slide, planType, styleBase, framing){
   return `${base}. ${framing}. Style: ${styleBase}. No text, no words, no letters in the image.`;
 }
 
+// 이미지 우하단에 'AI 생성' 라벨을 직접 새겨넣음 (다운로드/PPT에도 반영됨)
+function roundRect(ctx,x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);     ctx.arcTo(x,y,x+w,y,r);
+  ctx.closePath();
+}
+function watermarkImage(url, text='AI 생성'){
+  return new Promise((resolve)=>{
+    const img=new Image();
+    img.crossOrigin='anonymous';
+    img.onload=()=>{
+      try{
+        const c=document.createElement('canvas');
+        c.width=img.naturalWidth; c.height=img.naturalHeight;
+        const ctx=c.getContext('2d');
+        ctx.drawImage(img,0,0);
+        const pad=Math.round(c.width*0.022);
+        const fs =Math.max(13, Math.round(c.width*0.030));
+        ctx.font=`600 ${fs}px -apple-system,'Apple SD Gothic Neo','Noto Sans KR',sans-serif`;
+        ctx.textBaseline='top';
+        const tw=ctx.measureText(text).width;
+        const bx=fs*0.6, by=fs*0.42;
+        const w=tw+bx*2, h=fs+by*2;
+        const x=c.width-pad-w, y=c.height-pad-h;
+        ctx.fillStyle='rgba(0,0,0,0.45)';
+        roundRect(ctx,x,y,w,h,h/2); ctx.fill();
+        ctx.fillStyle='rgba(255,255,255,0.96)';
+        ctx.fillText(text, x+bx, y+by);
+        resolve(c.toDataURL('image/png'));
+      }catch(e){ resolve(url); }   // 보안(taint) 등 실패 시 원본 유지
+    };
+    img.onerror=()=>resolve(url);
+    img.src=url;
+  });
+}
+
 /* ════════════════════════════════════════════════════════════════
    메인 생성
    ════════════════════════════════════════════════════════════════ */
@@ -752,9 +846,11 @@ ${jsonExample}
       await mapLimit(slides, CONFIG.imageConcurrency, async (s,i)=>{
         try{
           const planType=planData[i]?.type||s.type;
+          slides[i]._planType=planType;
           const prompt=buildImgPrompt(s, planType, styleBase, mode.framing);
           console.log(`슬라이드${i+1} 이미지 프롬프트:`, prompt);
-          slides[i].imgUrl=await genImage(prompt);
+          const raw=await genImage(prompt);
+          slides[i].imgUrl=await watermarkImage(raw);
           updateThumb(i, s);
         }catch(e){
           slides[i].imgUrl=null; slides[i].imgError=e.message;
@@ -825,6 +921,7 @@ function renderMain(idx){
   card.className='card-wrap';
   card.innerHTML=buildCardHTML(slides[idx],idx,theme);
   mv.appendChild(card);
+  mv.appendChild(buildEditTools(idx));
 }
 
 function buildCardHTML(s,idx,theme){
@@ -836,31 +933,107 @@ function buildCardHTML(s,idx,theme){
   const pageEl=`<div class="page-indicator">${idx+1} / ${slides.length}</div>`;
   const brand=$('brand').value||'이랜드이츠 RO실';
 
+  const ce=(field)=>`contenteditable="true" spellcheck="false" oninput="editField(${idx},'${field}',this)"`;
+
   if(s.type==='cover'){
     return `<div class="card-inner card-cover">${imgEl}
 <div class="card-text">
   <div class="card-tag">CARD NEWS · ${brand}</div>
-  <div class="card-title" contenteditable="true" spellcheck="false">${s.title||''}</div>
-  <div class="card-sub" contenteditable="true" spellcheck="false">${s.subtitle||''}</div>
+  <div class="card-title" ${ce('title')}>${s.title||''}</div>
+  <div class="card-sub" ${ce('subtitle')}>${s.subtitle||''}</div>
   <div class="card-sender">${brand}</div>
 </div></div>${pageEl}`;
   }
   if(s.type==='end'){
-    const pts=(s.points||[]).map((p,i)=>`<div class="card-point-item"><div class="point-num">${i+1}</div><div class="point-text">${p}</div></div>`).join('');
+    const pts=(s.points||[]).map((p,i)=>`<div class="card-point-item"><div class="point-num">${i+1}</div><div class="point-text" contenteditable="true" spellcheck="false" oninput="editPoint(${idx},${i},this)">${p}</div></div>`).join('');
     return `<div class="card-inner card-end">${imgEl}
 <div class="card-text">
-  <div class="card-end-title" contenteditable="true" spellcheck="false">${s.title||'오늘의 핵심 정리'}</div>
+  <div class="card-end-title" ${ce('title')}>${s.title||'오늘의 핵심 정리'}</div>
   <div class="card-points">${pts}</div>
   <div class="card-cta">${s.cta||brand}</div>
 </div></div>${pageEl}`;
   }
   return `<div class="card-inner card-body-slide">${imgEl}
 <div class="card-text">
-  <div class="card-scene">${s.scene||''}</div>
-  <div class="card-title" contenteditable="true" spellcheck="false">${s.title||''}</div>
-  <div class="card-desc" contenteditable="true" spellcheck="false">${s.desc||''}</div>
-  ${s.point?`<div class="card-point" style="background:${theme.light};border-left:3px solid ${theme.main};color:${theme.point}" contenteditable="true" spellcheck="false">💡 ${s.point}</div>`:''}
+  <div class="card-scene" ${ce('scene')}>${s.scene||''}</div>
+  <div class="card-title" ${ce('title')}>${s.title||''}</div>
+  <div class="card-desc" ${ce('desc')}>${s.desc||''}</div>
+  ${s.point!==undefined?`<div class="card-point" style="background:${theme.light};border-left:3px solid ${theme.main};color:${theme.point}" contenteditable="true" spellcheck="false" oninput="editField(${idx},'point',this)">${s.point?('💡 '+s.point):''}</div>`:''}
 </div></div>${pageEl}`;
+}
+
+/* ── 생성물 추가 수정: 인라인 편집 저장 + 이미지 재생성/교체/이동 ── */
+function escapeAttr(s){ return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+
+function editField(idx, field, el){
+  if(!slides[idx]) return;
+  let v=el.textContent;
+  if(field==='point') v=v.replace(/^💡\s*/,'').trim();   // 표시용 이모지 제거 후 저장
+  slides[idx][field]=v;
+}
+function editPoint(idx, pi, el){
+  if(slides[idx]?.points) slides[idx].points[pi]=el.textContent;
+}
+
+function navSlide(d){
+  const n=slides.length; if(!n) return;
+  cur=(cur+d+n)%n; renderThumbs(); renderMain(cur);
+}
+
+function buildEditTools(idx){
+  const s=slides[idx];
+  const box=document.createElement('div');
+  box.className='edit-tools';
+  let html=`<div class="et-row et-nav">
+    <button class="et-btn" onclick="navSlide(-1)">‹ 이전</button>
+    <span class="et-hint">카드의 글자를 클릭해 바로 수정할 수 있어요 · 수정 내용은 저장·PPT에 반영돼요</span>
+    <button class="et-btn" onclick="navSlide(1)">다음 ›</button>
+  </div>`;
+  if(!s.textOnly){
+    html+=`<div class="et-row">
+      <input id="imgPromptInput" class="et-input" type="text" placeholder="그림 설명(영문) — 수정 후 '이미지 다시 생성'을 누르면 그대로 그려요" value="${escapeAttr(s.imgPrompt||'')}">
+      <button class="et-btn p" onclick="regenImage(${idx})">🔄 이미지 다시 생성</button>
+      <label class="et-btn" style="cursor:pointer">🖼️ 교체
+        <input type="file" accept="image/*" style="display:none" onchange="replaceImage(${idx}, this.files[0])">
+      </label>
+    </div>`;
+  }
+  box.innerHTML=html;
+  return box;
+}
+
+async function regenImage(idx){
+  const s=slides[idx];
+  if(!s || s.textOnly) return;
+  const inp=$('imgPromptInput');
+  if(inp) s.imgPrompt=inp.value.trim();
+  const styleBase=STYLE_MAP[$('imgStyle').value]||'clean modern illustration, simple character faces, soft colors';
+  const framing=MODES[outputMode].framing;
+  const planType=s._planType||s.type;
+  s.imgUrl=null; s.imgError=null;
+  renderMain(idx); updateThumb(idx, s);
+  try{
+    const prompt=buildImgPrompt(s, planType, styleBase, framing);
+    const raw=await genImage(prompt);
+    s.imgUrl=await watermarkImage(raw);
+    showToast('이미지를 새로 만들었어요 ✓');
+  }catch(e){
+    s.imgError=e.message;
+    showToast('이미지 생성 실패: '+e.message);
+  }
+  renderMain(idx); updateThumb(idx, s);
+}
+
+function replaceImage(idx, file){
+  if(!file || !slides[idx]) return;
+  const reader=new FileReader();
+  reader.onload=()=>{
+    slides[idx].imgUrl=reader.result;   // 사용자가 올린 이미지는 'AI 생성' 라벨 미부착
+    slides[idx].imgError=null;
+    renderMain(idx); updateThumb(idx, slides[idx]);
+    showToast('이미지를 교체했어요');
+  };
+  reader.readAsDataURL(file);
 }
 
 /* ════════════════════════════════════════════════════════════════
@@ -938,37 +1111,42 @@ async function dlPPT(){
     const accent=hex(theme.main), dark=hex(theme.dark), light=hex(theme.light);
     const brand=$('brand').value||'이랜드이츠 RO실';
     const pptx=new PptxGenJS();
-    pptx.defineLayout({name:'CN',width:10,height:5.625});
+    // 카드뉴스용 세로형(3:4) — 정사각 이미지가 왜곡/잘림 없이 들어감
+    const W=7.5, H=10, imgH=7.5, padX=0.5, tw=W-padX*2;
+    pptx.defineLayout({name:'CN',width:W,height:H});
     pptx.layout='CN';
 
     slides.forEach((s,i)=>{
       const slide=pptx.addSlide();
       slide.background={color:'FFFFFF'};
-      const imgH=3.05, hasImg=!!s.imgUrl;
+      const hasImg=!!s.imgUrl;
 
       if(hasImg){
-        slide.addImage({data:s.imgUrl,x:0,y:0,w:10,h:imgH,sizing:{type:'cover',w:10,h:imgH}});
+        // 연한 배경(레터박스 영역) 후 이미지를 비율 유지(contain)로 배치
+        slide.addShape(pptx.ShapeType.rect,{x:0,y:0,w:W,h:imgH,fill:{color:light}});
+        slide.addImage({data:s.imgUrl,x:0,y:0,w:W,h:imgH,sizing:{type:'contain',w:W,h:imgH}});
       }else{
-        slide.addShape(pptx.ShapeType.rect,{x:0,y:0,w:10,h:imgH,fill:{color:accent}});
-        slide.addText(thLabelEng(s.type),{x:0,y:0,w:10,h:imgH,align:'center',valign:'middle',color:'FFFFFF',fontSize:26,bold:true,charSpacing:2});
+        slide.addShape(pptx.ShapeType.rect,{x:0,y:0,w:W,h:imgH,fill:{color:accent}});
+        slide.addText(thLabelEng(s.type),{x:0,y:0,w:W,h:imgH,align:'center',valign:'middle',color:'FFFFFF',fontSize:30,bold:true,charSpacing:2});
       }
-      slide.addText(`${i+1} / ${slides.length}`,{x:8.7,y:0.12,w:1.2,h:0.3,fontSize:10,color:'FFFFFF',align:'right'});
+      // 페이지 번호 (어두운 알약 배경 + 흰 글자)
+      slide.addText(`${i+1} / ${slides.length}`,{x:W-1.25,y:0.16,w:1.05,h:0.32,fontSize:10,bold:true,color:'FFFFFF',align:'center',valign:'middle',fill:{color:'000000',transparency:55}});
 
-      const ty=imgH+0.22;
+      const ty=imgH+0.3;
       if(s.type==='cover'){
-        slide.addText(s.title||'',{x:0.55,y:ty,w:8.9,h:0.8,fontSize:26,bold:true,color:dark,valign:'top'});
-        slide.addText(s.subtitle||'',{x:0.55,y:ty+0.82,w:8.9,h:0.7,fontSize:15,color:'555555',valign:'top'});
-        slide.addText(brand,{x:0.55,y:5.18,w:8.9,h:0.35,fontSize:10,color:'9a9a9a'});
+        slide.addText(s.title||'',{x:padX,y:ty,w:tw,h:0.95,fontSize:23,bold:true,color:dark,valign:'top'});
+        slide.addText(s.subtitle||'',{x:padX,y:ty+0.98,w:tw,h:0.7,fontSize:13.5,color:'555555',valign:'top'});
+        slide.addText(brand,{x:padX,y:H-0.42,w:tw,h:0.3,fontSize:9.5,color:'9a9a9a'});
       }else if(s.type==='end'){
-        slide.addText(s.title||'오늘의 핵심 정리',{x:0.55,y:ty,w:8.9,h:0.6,fontSize:22,bold:true,color:dark});
-        const pts=(s.points||[]).map(p=>({text:p,options:{bullet:{code:'2022'},fontSize:14,color:'383838',paraSpaceAfter:8}}));
-        slide.addText(pts.length?pts:[{text:'—'}],{x:0.7,y:ty+0.72,w:8.6,h:1.5,valign:'top'});
-        slide.addText(s.cta||brand,{x:0.55,y:5.18,w:8.9,h:0.35,fontSize:10,color:'9a9a9a'});
+        slide.addText(s.title||'오늘의 핵심 정리',{x:padX,y:ty,w:tw,h:0.55,fontSize:19,bold:true,color:dark,valign:'top'});
+        const pts=(s.points||[]).map(p=>({text:p,options:{bullet:{code:'2022'},fontSize:13,color:'383838',paraSpaceAfter:7}}));
+        slide.addText(pts.length?pts:[{text:'—'}],{x:padX+0.12,y:ty+0.65,w:tw-0.12,h:1.35,valign:'top'});
+        slide.addText(s.cta||brand,{x:padX,y:H-0.42,w:tw,h:0.3,fontSize:9.5,color:'9a9a9a'});
       }else{
-        if(s.scene) slide.addText(String(s.scene).toUpperCase(),{x:0.55,y:ty,w:8.9,h:0.3,fontSize:10.5,bold:true,color:accent,charSpacing:1});
-        slide.addText(s.title||'',{x:0.55,y:ty+0.32,w:8.9,h:0.55,fontSize:20,bold:true,color:'1A1A1A',valign:'top'});
-        slide.addText(s.desc||'',{x:0.55,y:ty+0.92,w:8.9,h:1.0,fontSize:13,color:'444444',lineSpacingMultiple:1.25,valign:'top'});
-        if(s.point) slide.addText('💡  '+s.point,{x:0.55,y:5.0,w:8.9,h:0.5,fontSize:12,bold:true,color:dark,fill:{color:light},align:'left',valign:'middle',margin:6});
+        if(s.scene) slide.addText(String(s.scene).toUpperCase(),{x:padX,y:ty,w:tw,h:0.3,fontSize:10,bold:true,color:accent,charSpacing:1,valign:'top'});
+        slide.addText(s.title||'',{x:padX,y:ty+0.32,w:tw,h:0.55,fontSize:17,bold:true,color:'1A1A1A',valign:'top'});
+        slide.addText(s.desc||'',{x:padX,y:ty+0.92,w:tw,h:1.0,fontSize:11.5,color:'444444',lineSpacingMultiple:1.2,valign:'top'});
+        if(s.point) slide.addText('💡  '+s.point,{x:padX,y:H-0.95,w:tw,h:0.5,fontSize:11,bold:true,color:dark,fill:{color:light},align:'left',valign:'middle',margin:6});
       }
     });
 
