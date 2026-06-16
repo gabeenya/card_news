@@ -186,12 +186,12 @@ select{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='htt
 
 <!-- ════ Auth gate (로그인/회원가입) ════ -->
 <div class="auth-overlay" id="authOverlay">
-  <div class="auth-card">
+  <div class="auth-card" id="loginCard">
     <div class="auth-logo">✦</div>
     <h2 id="authTitle">로그인</h2>
     <p class="sub">AI 카드뉴스 생성기 · 이랜드이츠 RO실</p>
     <label>이메일</label>
-    <input type="email" id="authEmail" placeholder="name@회사도메인" autocomplete="email">
+    <input type="email" id="authEmail" placeholder="name@eland.co.kr" autocomplete="email">
     <label>비밀번호</label>
     <input type="password" id="authPw" placeholder="••••••••" autocomplete="current-password">
     <button class="auth-btn" id="authBtn" onclick="doAuth()">로그인</button>
@@ -199,6 +199,14 @@ select{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='htt
     <div class="auth-switch" id="authSwitch">
       계정이 없으신가요? <a onclick="toggleAuthMode()">회원가입</a>
     </div>
+  </div>
+  <div class="auth-card app-hidden" id="pendingCard">
+    <div class="auth-logo">⏳</div>
+    <h2>승인 대기 중</h2>
+    <p class="sub" id="pendingEmail"></p>
+    <div class="auth-msg ok" style="display:block">관리자 승인 후 사용할 수 있어요.<br>승인되면 아래 버튼을 눌러주세요.</div>
+    <button class="auth-btn" onclick="location.reload()">승인됐어요 · 새로고침</button>
+    <div class="auth-switch"><a onclick="doLogout()">로그아웃</a></div>
   </div>
 </div>
 
@@ -473,14 +481,34 @@ function initAuth(){
   }
   sb = supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseAnonKey);
   // 이미 로그인돼 있으면 바로 앱으로
-  sb.auth.getSession().then(({data:{session}})=>{ if(session) showApp(session.user); });
-  sb.auth.onAuthStateChange((_e, session)=>{ if(session) showApp(session.user); });
+  sb.auth.getSession().then(({data:{session}})=>{ if(session) enterFor(session.user); });
+  sb.auth.onAuthStateChange((_e, session)=>{ if(session) enterFor(session.user); });
 }
 
-function showApp(user){
+// 로그인 후 승인 여부에 따라 앱 / 승인대기 화면으로 분기
+async function enterFor(user){
+  let approved=false, role='member';
+  try{
+    const { data:profile } = await sb.from('profiles').select('approved,role').eq('id', user.id).single();
+    approved = !!profile?.approved;
+    role = profile?.role || 'member';
+  }catch(_){ approved=false; }
+  if(approved) showApp(user, role);
+  else showPending(user);
+}
+
+function showApp(user, role){
   $('authOverlay').style.display='none';
   $('app').classList.remove('app-hidden');
-  $('userEmail').textContent = user?.email || '';
+  $('userEmail').textContent = (user?.email||'') + (role==='admin' ? ' · 관리자' : '');
+}
+
+function showPending(user){
+  $('authOverlay').style.display='flex';
+  $('app').classList.add('app-hidden');
+  $('loginCard').classList.add('app-hidden');
+  $('pendingCard').classList.remove('app-hidden');
+  $('pendingEmail').textContent = user?.email || '';
 }
 
 function authMsg(text, kind){
