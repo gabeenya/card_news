@@ -1,0 +1,10 @@
+# Claude Code 작업 폴더 (개인 설정/메모리)
+.claude/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# 에디터
+.vscode/
+.idea/
