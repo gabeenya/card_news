@@ -223,6 +223,16 @@ select{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='htt
   </div>
 </header>
 
+<!-- Admin: 사용자 관리 (관리자에게만 보임) -->
+<div class="panel" id="adminPanel" style="display:none;padding:18px 20px;margin-bottom:20px">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+    <span class="section-title">👤 사용자 관리</span>
+    <button onclick="loadUsers()" style="font-size:12px;color:var(--muted);background:none;border:1px solid var(--border-strong);border-radius:7px;padding:5px 12px;cursor:pointer;font-family:var(--font)">새로고침</button>
+  </div>
+  <div class="section-desc" style="margin-bottom:13px">가입 요청을 승인하거나 취소할 수 있어요. (승인해야 카드뉴스 생성 가능)</div>
+  <div id="userList" style="display:flex;flex-direction:column;gap:8px"></div>
+</div>
+
 <!-- Main form -->
 <div class="fg">
   <div class="fc panel">
@@ -501,6 +511,47 @@ function showApp(user, role){
   $('authOverlay').style.display='none';
   $('app').classList.remove('app-hidden');
   $('userEmail').textContent = (user?.email||'') + (role==='admin' ? ' · 관리자' : '');
+  if(role==='admin'){ $('adminPanel').style.display='block'; loadUsers(); }
+}
+
+/* ── 관리자: 사용자 승인 관리 ── */
+function escapeHtml(s){ return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+async function loadUsers(){
+  const list=$('userList');
+  list.innerHTML='<div class="section-desc">불러오는 중...</div>';
+  const { data, error } = await sb.from('profiles')
+    .select('id,email,role,approved,created_at')
+    .order('approved',{ascending:true})
+    .order('created_at',{ascending:false});
+  if(error){ list.innerHTML='<div class="section-desc" style="color:var(--danger)">목록을 불러오지 못했어요: '+escapeHtml(error.message)+'</div>'; return; }
+  renderUsers(data||[]);
+}
+
+function renderUsers(rows){
+  const list=$('userList');
+  if(!rows.length){ list.innerHTML='<div class="section-desc">아직 사용자가 없어요.</div>'; return; }
+  const badge=(ok)=>ok
+    ? '<span style="font-size:11px;font-weight:700;color:var(--ok);background:#e9f6ef;border-radius:6px;padding:3px 9px">승인됨</span>'
+    : '<span style="font-size:11px;font-weight:700;color:#b06a00;background:#fdf3e3;border-radius:6px;padding:3px 9px">대기</span>';
+  list.innerHTML=rows.map(u=>{
+    const right = u.role==='admin'
+      ? '<span style="font-size:12px;color:var(--hint);font-weight:600">관리자</span>'
+      : (u.approved
+          ? `<button onclick="setApproval('${u.id}',false)" style="font-size:12px;font-weight:600;color:var(--muted);background:none;border:1px solid var(--border-strong);border-radius:7px;padding:6px 12px;cursor:pointer;font-family:var(--font)">승인 취소</button>`
+          : `<button onclick="setApproval('${u.id}',true)" style="font-size:12px;font-weight:700;color:#fff;background:var(--accent);border:none;border-radius:7px;padding:6px 14px;cursor:pointer;font-family:var(--font)">승인</button>`);
+    return `<div style="display:flex;align-items:center;gap:11px;padding:10px 13px;border:1px solid var(--border);border-radius:9px;background:var(--surface-2)">
+      <span style="flex:1;min-width:0;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(u.email)}</span>
+      ${badge(u.approved)}${right}
+    </div>`;
+  }).join('');
+}
+
+async function setApproval(id, val){
+  const { error } = await sb.from('profiles').update({approved:val}).eq('id', id);
+  if(error){ showToast('오류: '+error.message); return; }
+  showToast(val?'승인했어요 ✓':'승인을 취소했어요');
+  loadUsers();
 }
 
 function showPending(user){
