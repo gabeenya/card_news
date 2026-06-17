@@ -712,7 +712,7 @@ async function doAuth(){
     if(authMode==='signup'){
       const { error } = await sb.auth.signUp({ email, password:pw });
       if(error) throw error;
-      authMsg('가입 확인 메일을 보냈어요. 메일의 링크를 클릭하면 로그인할 수 있어요.', 'ok');
+      authMsg('가입 신청이 완료됐어요. 관리자 승인 후 바로 로그인할 수 있어요.', 'ok');
     }else{
       const { error } = await sb.auth.signInWithPassword({ email, password:pw });
       if(error) throw error;
@@ -721,6 +721,7 @@ async function doAuth(){
   }catch(e){
     let msg=e.message||String(e);
     if(/allowed_domain_only|Database error/i.test(msg)) msg='회사 이메일 도메인으로만 가입할 수 있어요.';
+    else if(/Email not confirmed/i.test(msg)) msg='관리자 승인 대기 중이거나, Supabase 이메일 인증이 아직 켜져 있어요. 관리자에게 문의해 주세요.';
     else if(/Invalid login/i.test(msg)) msg='이메일 또는 비밀번호가 올바르지 않아요.';
     else if(/already registered/i.test(msg)) msg='이미 가입된 이메일이에요. 로그인해 주세요.';
     authMsg(msg, 'err');
