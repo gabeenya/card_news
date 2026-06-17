@@ -289,6 +289,15 @@ header .logo{animation:floatLogo 4.5s ease-in-out infinite}
   </div>
 </div>
 
+<div class="modal-overlay" id="timeoutModal" style="display:none;z-index:1200">
+  <div class="modal-card" style="max-width:380px;text-align:center">
+    <div class="auth-logo" style="font-size:30px">🔒</div>
+    <h2 style="margin:6px 0 4px">자동 로그아웃</h2>
+    <p class="sub" style="margin:0 0 14px">보안을 위해 3시간이 지나 세션이 만료됐어요.<br><b id="timeoutCount">60</b>초 후 자동으로 로그아웃됩니다.</p>
+    <button class="auth-btn" onclick="doLogout()">지금 로그아웃</button>
+  </div>
+</div>
+
 <div class="wrap app-hidden" id="app">
 <header>
   <div class="logo">✦</div>
@@ -610,14 +619,25 @@ function initAuth(){
     authMsg('Supabase 설정이 아직 안 됐어요. index.html의 CONFIG에 supabaseUrl / supabaseAnonKey를 넣어주세요.', 'err');
     return;
   }
-  sb = supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseAnonKey);
+  sb = supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseAnonKey, {
+    auth: {
+      // 세션을 sessionStorage 에 저장 → 탭/창을 닫으면 자동 로그아웃
+      storage: window.sessionStorage,
+      persistSession: true,
+      autoRefreshToken: true,
+    }
+  });
   // 이미 로그인돼 있으면 바로 앱으로
   sb.auth.getSession().then(({data:{session}})=>{ if(session) enterFor(session.user); });
-  sb.auth.onAuthStateChange((_e, session)=>{ if(session) enterFor(session.user); });
+  sb.auth.onAuthStateChange((e, session)=>{
+    if(session) enterFor(session.user);
+    if(e==='SIGNED_OUT') clearSessionTimer();
+  });
 }
 
 // 로그인 후 승인 여부에 따라 앱 / 승인대기 화면으로 분기
 async function enterFor(user){
+  startSessionTimer();
   let approved=false, role='member';
   try{
     const { data:profile } = await sb.from('profiles').select('approved,role').eq('id', user.id).single();
@@ -626,6 +646,40 @@ async function enterFor(user){
   }catch(_){ approved=false; }
   if(approved) showApp(user, role);
   else showPending(user);
+}
+
+/* ── 3시간 후 자동 로그아웃 (만료 직전 확인 팝업) ── */
+const SESSION_MAX_MS = 3*60*60*1000;   // 3시간
+const LOGOUT_COUNTDOWN_S = 60;         // 팝업 후 카운트다운(초)
+let _sessionTimer=null, _countdownTimer=null;
+
+function startSessionTimer(){
+  let loginAt = +sessionStorage.getItem('cn_login_at');
+  if(!loginAt){ loginAt = Date.now(); sessionStorage.setItem('cn_login_at', String(loginAt)); }
+  const remain = SESSION_MAX_MS - (Date.now() - loginAt);
+  clearTimeout(_sessionTimer);
+  if(remain <= 0){ showTimeoutWarning(); return; }
+  _sessionTimer = setTimeout(showTimeoutWarning, remain);
+}
+
+function showTimeoutWarning(){
+  if(_countdownTimer) return;            // 이미 표시 중
+  let left = LOGOUT_COUNTDOWN_S;
+  const elCount = $('timeoutCount');
+  if(elCount) elCount.textContent = left;
+  $('timeoutModal').style.display='flex';
+  _countdownTimer = setInterval(()=>{
+    left--;
+    if(elCount) elCount.textContent = Math.max(left,0);
+    if(left <= 0){ clearInterval(_countdownTimer); _countdownTimer=null; doLogout(); }
+  }, 1000);
+}
+
+function clearSessionTimer(){
+  clearTimeout(_sessionTimer); _sessionTimer=null;
+  if(_countdownTimer){ clearInterval(_countdownTimer); _countdownTimer=null; }
+  sessionStorage.removeItem('cn_login_at');
+  const m=$('timeoutModal'); if(m) m.style.display='none';
 }
 
 function showApp(user, role){
@@ -731,6 +785,7 @@ async function doAuth(){
 }
 
 async function doLogout(){
+  clearSessionTimer();
   if(sb) await sb.auth.signOut();
   location.reload();
 }
