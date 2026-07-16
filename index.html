@@ -310,13 +310,13 @@ select{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='htt
 <div class="fg">
   <div class="fc panel">
     <div class="fi"><label class="fl">주제 / 공지 내용 *</label>
-      <textarea id="topic" placeholder="예: 표시광고법 위반 사례와 주의사항&#10;마케팅팀 대상, 쉽고 임팩트 있게 전달하고 싶어요."></textarea>
+      <textarea id="topic" placeholder="예: 표시광고법 위반 사례와 주의사항&#10;마케팅팀 대상, 쉽고 임팩트 있게 전달하고 싶어요." style="min-height:140px"></textarea>
     </div>
     <div class="fi"><label class="fl">핵심 강조 메시지 (선택)</label>
-      <textarea id="keymsg" placeholder="예: 근거 없는 1위 표현 절대 금지!" style="min-height:54px"></textarea>
+      <textarea id="keymsg" placeholder="예: 근거 없는 1위 표현 절대 금지!" style="min-height:84px"></textarea>
     </div>
     <div class="fi"><label class="fl">생성 시 참고사항 (선택)</label>
-      <textarea id="refNotes" placeholder="생성기가 참고해야 할 사항을 자유롭게 적어주세요.&#10;예: 전문 용어는 쉽게 풀어쓰기 / 우리 회사는 외식 프랜차이즈 / 너무 딱딱하지 않게 / 특정 표현 금지 등" style="min-height:70px"></textarea>
+      <textarea id="refNotes" placeholder="생성기가 참고해야 할 사항을 자유롭게 적어주세요.&#10;예: 전문 용어는 쉽게 풀어쓰기 / 우리 회사는 외식 프랜차이즈 / 너무 딱딱하지 않게 / 특정 표현 금지 등" style="min-height:150px"></textarea>
     </div>
   </div>
   <div class="fc panel">
@@ -325,6 +325,14 @@ select{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='htt
         <button type="button" class="seg-btn on" data-mode="comic" onclick="setMode('comic')">애니메이션</button>
         <button type="button" class="seg-btn" data-mode="fourcut" onclick="setMode('fourcut')">4컷만화</button>
         <button type="button" class="seg-btn" data-mode="text" onclick="setMode('text')">텍스트</button>
+      </div>
+    </div>
+    <div class="fi"><label class="fl">브랜드 프로필 <span style="font-weight:600;text-transform:none;letter-spacing:0;color:var(--hint)">(선택 · 캐릭터·금칙어 고정 재사용)</span></label>
+      <div style="display:flex;gap:8px">
+        <select id="brandProfile" onchange="applyBrandProfile(this.value)" style="flex:1">
+          <option value="">직접 입력 (매번 새로 생성)</option>
+        </select>
+        <button type="button" class="et-btn" onclick="openProfileManager()" style="white-space:nowrap">⚙ 관리</button>
       </div>
     </div>
     <div class="fi"><label class="fl">브랜드 / 발신 부서</label>
@@ -428,6 +436,39 @@ select{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='htt
   </div>
 </div>
 
+<!-- 브랜드 프로필 관리 모달 -->
+<div class="modal-overlay" id="profileModal" style="display:none" onclick="if(event.target===this)closeProfileManager()">
+  <div class="modal-card" style="max-width:560px">
+    <div class="modal-head">
+      <span class="section-title">⚙ 브랜드 프로필 관리</span>
+      <div class="modal-acts"><button class="et-btn" onclick="closeProfileManager()">닫기 ✕</button></div>
+    </div>
+    <div class="section-desc" style="margin:8px 0 16px">캐릭터 외형과 금칙어를 저장해두면, 다음에 이 프로필을 고를 때마다 <b>같은 캐릭터</b>가 그려지고 <b>지정한 표현은 자동으로 검사</b>돼요. 팀 전체가 공유하는 프로필이에요.</div>
+    <div class="fi"><label class="fl">프로필 이름</label>
+      <input type="text" id="pfName" placeholder="예: 이랜드이츠 RO실 기본">
+    </div>
+    <div class="fi"><label class="fl">브랜드 / 발신 부서</label>
+      <input type="text" id="pfBrand" placeholder="예: 이랜드이츠 RO실">
+    </div>
+    <div class="fi"><label class="fl">캐릭터 고정 묘사 (영어)</label>
+      <textarea id="pfChar" placeholder="예: a friendly Korean office woman in her late 20s, short black bob hair, coral blazer, round glasses" style="min-height:66px"></textarea>
+      <button type="button" class="et-btn" style="margin-top:7px" onclick="loadCurrentCharacter()">💬 방금 생성한 캐릭터 불러오기</button>
+    </div>
+    <div class="fi"><label class="fl">금칙어 / 주의 표현 <span style="font-weight:600;text-transform:none;letter-spacing:0;color:var(--hint)">(한 줄에 하나씩)</span></label>
+      <textarea id="pfBanned" placeholder="예:&#10;1위&#10;최고&#10;100% 효과" style="min-height:66px"></textarea>
+    </div>
+    <div class="et-row" style="margin-top:2px">
+      <button class="et-btn p" onclick="saveBrandProfile()">저장</button>
+      <button class="et-btn" onclick="resetProfileForm()">새 프로필로 비우기</button>
+      <button class="et-btn" id="pfDeleteBtn" style="display:none;color:var(--danger);border-color:#f3d6cc" onclick="deleteBrandProfile()">삭제</button>
+    </div>
+    <div style="margin-top:18px;border-top:1px solid var(--border);padding-top:14px">
+      <div class="section-title" style="margin-bottom:9px">저장된 프로필</div>
+      <div id="profileList" style="display:flex;flex-direction:column;gap:8px"></div>
+    </div>
+  </div>
+</div>
+
 <!-- 사용 가이드 모달 -->
 <div class="modal-overlay" id="helpModal" style="display:none" onclick="if(event.target===this)closeHelp()">
   <div class="modal-card" style="max-width:600px">
@@ -475,6 +516,7 @@ const CONFIG = {
    상태 & 상수
    ════════════════════════════════════════════════════════════════ */
 let slides=[], cur=0, outputMode='comic', charDesign='';
+let brandProfiles=[], activeProfile=null, editingProfileId=null;
 
 const THEMES={
   blue: {main:'#4f46e5',light:'#eef0fc',dark:'#1e2d8a',point:'#1e2d8a'},
@@ -681,6 +723,7 @@ function showApp(user, role){
   $('app').classList.remove('app-hidden');
   $('userEmail').textContent = (user?.email||'') + (role==='admin' ? ' · 관리자' : '');
   if(role==='admin'){ $('adminBtn').style.display=''; }
+  loadBrandProfiles();
 }
 function openAdmin(){ $('adminModal').style.display='flex'; loadUsers(); }
 function closeAdmin(){ $('adminModal').style.display='none'; }
@@ -725,6 +768,111 @@ async function setApproval(id, val){
   if(error){ showToast('오류: '+error.message); return; }
   showToast(val?'승인했어요 ✓':'승인을 취소했어요');
   loadUsers();
+}
+
+/* ── 브랜드 프로필 (캐릭터 고정 + 금칙어) ── */
+async function loadBrandProfiles(){
+  const { data, error } = await sb.from('brand_profiles').select('*').order('name');
+  if(error){ console.error('브랜드 프로필 로드 실패:', error.message); return; }
+  brandProfiles = data||[];
+  renderProfileSelect();
+}
+
+function renderProfileSelect(){
+  const sel=$('brandProfile');
+  const cur=sel.value;
+  sel.innerHTML = '<option value="">직접 입력 (매번 새로 생성)</option>' +
+    brandProfiles.map(p=>`<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+  if(brandProfiles.some(p=>p.id===cur)) sel.value=cur;
+  applyBrandProfile(sel.value);
+}
+
+function applyBrandProfile(id){
+  activeProfile = brandProfiles.find(p=>p.id===id) || null;
+  if(activeProfile && activeProfile.brand) $('brand').value = activeProfile.brand;
+}
+
+function openProfileManager(){ $('profileModal').style.display='flex'; resetProfileForm(); renderProfileList(); }
+function closeProfileManager(){ $('profileModal').style.display='none'; }
+
+function resetProfileForm(){
+  editingProfileId=null;
+  $('pfName').value=''; $('pfBrand').value=$('brand').value||'';
+  $('pfChar').value=''; $('pfBanned').value='';
+  $('pfDeleteBtn').style.display='none';
+}
+
+function loadCurrentCharacter(){
+  if(!charDesign){ showToast('먼저 애니메이션/4컷만화로 카드뉴스를 한 번 생성해보세요'); return; }
+  $('pfChar').value=charDesign;
+  showToast('방금 생성한 캐릭터 묘사를 불러왔어요');
+}
+
+function renderProfileList(){
+  const list=$('profileList');
+  if(!brandProfiles.length){ list.innerHTML='<div class="section-desc">아직 저장된 프로필이 없어요.</div>'; return; }
+  list.innerHTML = brandProfiles.map(p=>`
+    <div style="display:flex;align-items:center;gap:11px;padding:10px 13px;border:1px solid var(--border);border-radius:9px;background:var(--surface-2)">
+      <span style="flex:1;min-width:0;font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(p.name)}</span>
+      <button class="et-btn" onclick="editProfile('${p.id}')">수정</button>
+    </div>`).join('');
+}
+
+function editProfile(id){
+  const p=brandProfiles.find(x=>x.id===id);
+  if(!p) return;
+  editingProfileId=id;
+  $('pfName').value=p.name||''; $('pfBrand').value=p.brand||'';
+  $('pfChar').value=p.character_design||''; $('pfBanned').value=p.banned_words||'';
+  $('pfDeleteBtn').style.display='';
+}
+
+async function saveBrandProfile(){
+  const name=$('pfName').value.trim();
+  if(!name){ showToast('프로필 이름을 입력해 주세요'); return; }
+  const row={
+    name,
+    brand:$('pfBrand').value.trim(),
+    character_design:$('pfChar').value.trim(),
+    banned_words:$('pfBanned').value.trim(),
+    updated_at:new Date().toISOString(),
+  };
+  let error;
+  if(editingProfileId){
+    ({error}=await sb.from('brand_profiles').update(row).eq('id', editingProfileId));
+  }else{
+    const { data:{ user } } = await sb.auth.getUser();
+    row.created_by = user?.id || null;
+    ({error}=await sb.from('brand_profiles').insert(row));
+  }
+  if(error){ showToast('저장 실패: '+error.message); return; }
+  showToast('브랜드 프로필을 저장했어요 ✓');
+  await loadBrandProfiles();
+  resetProfileForm();
+  renderProfileList();
+}
+
+async function deleteBrandProfile(){
+  if(!editingProfileId) return;
+  if(!confirm('이 프로필을 삭제할까요?')) return;
+  const { error } = await sb.from('brand_profiles').delete().eq('id', editingProfileId);
+  if(error){ showToast('삭제 실패: '+error.message); return; }
+  showToast('삭제했어요');
+  await loadBrandProfiles();
+  resetProfileForm();
+  renderProfileList();
+}
+
+/* 슬라이드 텍스트에서 금칙어 검사 */
+function scanBannedWords(slidesArr, bannedRaw){
+  const words=(bannedRaw||'').split(/[\n,]/).map(w=>w.trim()).filter(Boolean);
+  if(!words.length) return [];
+  const hits=[];
+  slidesArr.forEach((s,i)=>{
+    const text=[s.title,s.subtitle,s.desc,s.scene,s.point,...(s.points||[]),...(s.bubbles||[])].filter(Boolean).join(' ');
+    words.forEach(w=>{ if(w && text.includes(w)) hits.push({idx:i, word:w}); });
+  });
+  return hits;
 }
 
 function showPending(user){
@@ -1000,28 +1148,34 @@ async function gen(){
   · '그림으로 표현할 내용'에 지정된 내용을 그대로 시각화
   · 상황·등장인물의 행동·표정을 구체적으로, 슬라이드마다 서로 다르게
   · 캐릭터 한 명이 그냥 서 있는 식의 단조로운 묘사 금지
-  · imgPrompt에는 characters에 적은 인물의 외형(헤어스타일·복장 등)을 다시 묘사하지 말고, 이 슬라이드만의 상황·행동·표정에 집중할 것 (인물 외형은 시스템이 자동으로 붙여줌)
+  · imgPrompt에는 인물의 외형(헤어스타일·복장 등)을 묘사하지 말고, 이 슬라이드만의 상황·행동·표정에 집중할 것 (인물 외형은 시스템이 자동으로 붙여줌)
   · 그림 안에 글자/텍스트/말풍선은 절대 넣지 말 것 (대사는 별도 텍스트로만 작성)${isFourcut ? `
   · 반드시 "Panel 1: ... Panel 2: ... Panel 3: ... Panel 4: ..." 형식으로 4개 패널의 장면을 순서대로 각각 구체적으로 묘사
   · 4개 패널 전체가 기승전결이 있는 짧은 이야기가 되도록 구성 (같은 장면 반복 금지)
   · bubbles는 각 패널 속 인물의 대사/생각을 한국어로 짧고 자연스럽게 (패널당 1개, 12자 내외, 반말/구어체)` : ''}` : '';
 
-    const charRule = useImg ? `
+    const fixedChar = activeProfile?.character_design?.trim() || '';
+    const needCharGen = useImg && !fixedChar;
+    const charRule = needCharGen ? `
 - characters는 영어로, 이 카드뉴스 전체(모든 슬라이드${isFourcut?', 모든 패널':''})에 반복 등장할 주인공 1~2명의 고정 외형 묘사
   · 성별·연령대·헤어스타일과 색·복장·특징을 구체적으로 적어서, 슬라이드가 바뀌어도 같은 사람처럼 보이게 할 것` : '';
+
+    const bannedList=(activeProfile?.banned_words||'').split(/[\n,]/).map(w=>w.trim()).filter(Boolean);
+    const bannedRule = bannedList.length ? `
+- 아래 표현/단어는 절대 사용하지 말 것 (브랜드 프로필에 등록된 금칙어): ${bannedList.join(', ')}` : '';
 
     const claudePrompt=`카드뉴스 ${N}장을 아래 JSON 형식으로만 반환해줘. 마크다운/설명 없이 JSON만.
 
 주제: ${topic}
 핵심 메시지: ${keymsg||'없음'}
 발신: ${brand}
-출력 형태: ${mode.label}${refNotes?`\n\n[생성 시 참고사항 — 반드시 반영]\n${refNotes}`:''}
+출력 형태: ${mode.label}${fixedChar?`\n등장인물(고정 · imgPrompt에 외형을 다시 묘사하지 말고 상황에만 참고): ${fixedChar}`:''}${refNotes?`\n\n[생성 시 참고사항 — 반드시 반영]\n${refNotes}`:''}
 
 아래 스토리 구성을 반드시 따라줘:
 ${planInstructions}
 
 JSON 형식:
-{${useImg?`
+{${needCharGen?`
   "characters":"영어로 된 고정 인물 묘사",`:''}
   "slides":[
 ${jsonExample}
@@ -1030,15 +1184,23 @@ ${jsonExample}
 
 규칙:
 - scene은 한국어로 슬라이드 상황을 한 줄로 (카드에 표시됨)
-- '텍스트로 전달할 내용'이 지정된 슬라이드는 그 내용을 본문(title/desc/point 등)에 반영${charRule}${imgRules}
+- '텍스트로 전달할 내용'이 지정된 슬라이드는 그 내용을 본문(title/desc/point 등)에 반영${charRule}${bannedRule}${imgRules}
 - 지정 안 된 부분은 주제와 전체 흐름에 맞게 자연스럽게 작성
 - 톤이 지정된 경우 해당 톤으로 텍스트 작성`;
 
     // 1) 텍스트
     const cd = await genSlidesText(claudePrompt);
     slides = cd.slides||[];
-    charDesign = (useImg && cd.characters) ? String(cd.characters).trim() : '';
+    charDesign = fixedChar || ((useImg && cd.characters) ? String(cd.characters).trim() : '');
     slides.forEach(s=>{ s.textOnly = !useImg; });
+
+    if(bannedList.length){
+      const hits=scanBannedWords(slides, activeProfile.banned_words);
+      if(hits.length){
+        const summary=[...new Set(hits.map(h=>`슬라이드${h.idx+1}:'${h.word}'`))].join(', ');
+        showToast(`⚠ 금칙어 발견 — ${summary} (내용을 확인해 주세요)`);
+      }
+    }
 
     if(useImg){
       setStep(1); await sleep(250); setStep(2);
