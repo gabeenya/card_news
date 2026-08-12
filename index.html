@@ -50,6 +50,16 @@ textarea{resize:vertical;min-height:88px;line-height:1.65}
 textarea:focus,select:focus,input:focus{border-color:var(--accent);box-shadow:0 0 0 3.5px var(--accent-soft);background:var(--surface)}
 select{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' stroke='%236c6b66' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px}
 
+/* ── 파일 첨부 (드롭존) ── */
+.dropzone{border:1.5px dashed var(--border-strong);border-radius:var(--radius-sm);padding:13px 15px;text-align:center;font-size:12.5px;color:var(--muted);cursor:pointer;background:var(--surface-2);transition:border-color .15s,background .15s,color .15s}
+.dropzone:hover,.dropzone.drag{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+.dropzone .dz-file{display:none;align-items:center;justify-content:space-between;gap:10px;text-align:left}
+.dropzone .dz-file span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;color:var(--text)}
+.dropzone .dz-file button{border:none;background:none;color:var(--hint);cursor:pointer;font-size:15px;font-weight:700;line-height:1;padding:2px 4px;flex-shrink:0}
+.dropzone .dz-file button:hover{color:var(--danger)}
+.dropzone.has-file{cursor:default}
+.dropzone.has-file:hover{border-color:var(--border-strong);background:var(--surface-2);color:var(--muted)}
+
 /* segmented control (출력 형태) */
 .seg{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;background:var(--surface-2);border:1px solid var(--border-strong);border-radius:10px;padding:4px}
 .seg-btn{padding:10px 6px;border:none;background:transparent;border-radius:7px;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer;font-family:var(--font);transition:all .14s}
@@ -248,6 +258,7 @@ select{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='htt
 @media(prefers-reduced-motion:reduce){*{animation:none!important}}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -309,8 +320,18 @@ select{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='htt
 <div class="step-eyebrow"><span class="num">1</span><span class="t">콘텐츠 &amp; 스타일</span><span class="d">무엇을, 어떤 느낌으로 만들지 정해요</span></div>
 <div class="fg">
   <div class="fc panel">
-    <div class="fi"><label class="fl">주제 / 공지 내용 *</label>
+    <div class="fi"><label class="fl">주제 / 공지 내용 <span style="font-weight:600;text-transform:none;letter-spacing:0;color:var(--hint)">(파일을 첨부하면 비워도 돼요)</span></label>
       <textarea id="topic" placeholder="예: 표시광고법 위반 사례와 주의사항&#10;마케팅팀 대상, 쉽고 임팩트 있게 전달하고 싶어요." style="min-height:140px"></textarea>
+    </div>
+    <div class="fi"><label class="fl">파일로 자동 생성 <span style="font-weight:600;text-transform:none;letter-spacing:0;color:var(--hint)">(선택 · PDF·이미지·워드·텍스트)</span></label>
+      <div class="dropzone" id="dropzone" onclick="$('fileInput').click()">
+        <input type="file" id="fileInput" accept=".pdf,.txt,.docx,image/png,image/jpeg,image/webp,image/gif" style="display:none" onchange="handleFileSelect(this.files[0])">
+        <div id="dzEmpty">📎 클릭하거나 파일을 끌어다 놓으면, 내용을 읽어서 주제 없이도 카드뉴스를 만들어요</div>
+        <div class="dz-file" id="dzFile">
+          <span id="dzFileName"></span>
+          <button type="button" onclick="event.stopPropagation();removeFile()" title="제거">✕</button>
+        </div>
+      </div>
     </div>
     <div class="fi"><label class="fl">핵심 강조 메시지 (선택)</label>
       <textarea id="keymsg" placeholder="예: 근거 없는 1위 표현 절대 금지!" style="min-height:84px"></textarea>
@@ -478,7 +499,7 @@ select{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='htt
     </div>
     <p class="section-desc" style="margin:8px 0 16px">AI가 주제만으로 그림+글이 들어간 카드뉴스를 만들어줘요. 아래 순서대로만 하면 돼요.</p>
     <div class="guide">
-      <div class="g-step"><div class="g-num">1</div><div><b>주제 입력</b><p>‘주제 / 공지 내용’에 만들고 싶은 내용을 적어요. ‘핵심 강조 메시지’와 ‘생성 시 참고사항’은 선택이에요 (적으면 더 정확해져요).</p></div></div>
+      <div class="g-step"><div class="g-num">1</div><div><b>주제 입력 또는 파일 첨부</b><p>‘주제 / 공지 내용’에 만들고 싶은 내용을 적어요. 또는 <b>PDF·이미지·워드·텍스트 파일을 첨부</b>하면 주제를 안 적어도 파일 내용을 읽어서 자동으로 만들어줘요. ‘핵심 강조 메시지’와 ‘생성 시 참고사항’은 선택이에요 (적으면 더 정확해져요).</p></div></div>
       <div class="g-step"><div class="g-num">2</div><div><b>형태·스타일 선택</b><p>출력 형태(애니메이션 / 4컷만화 / 텍스트), 이미지 스타일, 컬러 테마, 슬라이드 수(2~10장)를 골라요.</p></div></div>
       <div class="g-step"><div class="g-num">3</div><div><b>스토리 구성 (선택)</b><p>슬라이드별로 ‘그림으로 표현할 내용’과 ‘텍스트로 전달할 내용’, 톤을 지정할 수 있어요. 비워두면 AI가 알아서 구성해요.</p></div></div>
       <div class="g-step"><div class="g-num">4</div><div><b>생성하기</b><p>‘✦ AI 카드뉴스 생성하기’를 누르면 글 → 이미지 순서로 만들어져요. 잠시 기다리면 결과가 아래에 나와요.</p></div></div>
@@ -517,6 +538,7 @@ const CONFIG = {
    ════════════════════════════════════════════════════════════════ */
 let slides=[], cur=0, outputMode='comic', charDesign='';
 let brandProfiles=[], activeProfile=null, editingProfileId=null;
+let uploadedFile=null, uploadedFileKind=null, uploadedFileText='', uploadedFileBlock=null;
 
 const THEMES={
   blue: {main:'#4f46e5',light:'#eef0fc',dark:'#1e2d8a',point:'#1e2d8a'},
@@ -576,6 +598,86 @@ async function mapLimit(items, limit, fn){
 }
 
 function getN(){return Math.min(10,Math.max(2,parseInt($('slideCount').value)||4))}
+
+/* ════════════════════════════════════════════════════════════════
+   파일 첨부 (업로드한 파일 내용을 읽어서 주제 없이도 자동 생성)
+   ════════════════════════════════════════════════════════════════ */
+const MAX_FILE_MB=8; // base64 인코딩 시 ~33% 커짐 — Edge Function 요청 크기 여유 확보
+const MAX_FILE_TEXT_CHARS=20000; // txt/docx에서 뽑아낸 텍스트 길이 상한(과금·속도 보호용)
+const IMAGE_MIME_TYPES=['image/png','image/jpeg','image/webp','image/gif'];
+
+function fileToBase64(file){
+  return new Promise((resolve,reject)=>{
+    const r=new FileReader();
+    r.onload=()=>resolve(String(r.result).split(',')[1]||'');
+    r.onerror=()=>reject(new Error('파일을 읽지 못했어요'));
+    r.readAsDataURL(file);
+  });
+}
+
+async function handleFileSelect(file){
+  if(!file) return;
+  if(file.size > MAX_FILE_MB*1024*1024){ showToast(`파일이 너무 커요 (최대 ${MAX_FILE_MB}MB)`); return; }
+
+  removeFile();
+  uploadedFile=file;
+  $('dzEmpty').style.display='none';
+  $('dzFile').style.display='flex';
+  $('dropzone').classList.add('has-file');
+  $('dzFileName').textContent=`${file.name} · 읽는 중...`;
+
+  try{
+    const isTxt = file.type==='text/plain' || /\.txt$/i.test(file.name);
+    const isDocx = /\.docx$/i.test(file.name) || file.type==='application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    const isPdf = file.type==='application/pdf' || /\.pdf$/i.test(file.name);
+    const isImage = IMAGE_MIME_TYPES.includes(file.type);
+
+    if(isTxt){
+      uploadedFileKind='text';
+      uploadedFileText=(await file.text()).trim().slice(0,MAX_FILE_TEXT_CHARS);
+    }else if(isDocx){
+      uploadedFileKind='docx';
+      if(typeof mammoth==='undefined') throw new Error('워드 파일 변환 모듈을 불러오지 못했어요 (인터넷 연결 확인)');
+      const buf=await file.arrayBuffer();
+      const result=await mammoth.extractRawText({arrayBuffer:buf});
+      uploadedFileText=(result.value||'').trim().slice(0,MAX_FILE_TEXT_CHARS);
+      if(!uploadedFileText) throw new Error('워드 파일에서 텍스트를 찾지 못했어요');
+    }else if(isPdf){
+      uploadedFileKind='pdf';
+      uploadedFileBlock={mediaType:'application/pdf', data:await fileToBase64(file)};
+    }else if(isImage){
+      uploadedFileKind='image';
+      uploadedFileBlock={mediaType:file.type, data:await fileToBase64(file)};
+    }else{
+      throw new Error('지원하지 않는 형식이에요 (PDF·이미지·워드·텍스트만 가능)');
+    }
+    $('dzFileName').textContent=`📎 ${file.name}`;
+  }catch(e){
+    showToast('파일을 읽지 못했어요: '+e.message);
+    removeFile();
+  }
+}
+
+function removeFile(){
+  uploadedFile=null; uploadedFileKind=null; uploadedFileText=''; uploadedFileBlock=null;
+  $('dzEmpty').style.display='';
+  $('dzFile').style.display='none';
+  $('dropzone').classList.remove('has-file');
+  $('fileInput').value='';
+}
+
+function setupDropzone(){
+  const dz=$('dropzone');
+  if(!dz) return;
+  ['dragover','dragenter'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();e.stopPropagation();dz.classList.add('drag');}));
+  ['dragleave','dragend'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.remove('drag');}));
+  dz.addEventListener('drop',e=>{
+    e.preventDefault(); e.stopPropagation(); dz.classList.remove('drag');
+    const f=e.dataTransfer?.files?.[0];
+    if(f) handleFileSelect(f);
+  });
+}
+document.addEventListener('DOMContentLoaded', setupDropzone);
 
 /* ════════════════════════════════════════════════════════════════
    출력 형태 (애니메이션 / 4컷만화 / 텍스트)
@@ -963,9 +1065,11 @@ async function callFn(name, payload){
   return data;
 }
 
-async function genSlidesText(prompt){
+async function genSlidesText(promptOrContent){
+  // 파일(PDF/이미지) 첨부 시 content block 배열, 아니면 문자열 prompt
+  const payload = Array.isArray(promptOrContent) ? {content:promptOrContent} : {prompt:promptOrContent};
   const cd = await callFn('claude', {
-    prompt, model:CONFIG.claudeModel, max_tokens:CONFIG.claudeMaxTokens,
+    ...payload, model:CONFIG.claudeModel, max_tokens:CONFIG.claudeMaxTokens,
   });
   if(cd.error) throw new Error('Claude: '+(cd.error.message||cd.error));
   const txt=(cd.content||[]).map(i=>i.text||'').join('').replace(/```json|```/g,'').trim();
@@ -1103,7 +1207,7 @@ async function gen(){
   const topic=$('topic').value.trim();
   const mode=MODES[outputMode];
   $('errbar').style.display='none';
-  if(!topic){showErr('주제를 입력해 주세요.');return}
+  if(!topic && !uploadedFileText && !uploadedFileBlock){showErr('주제를 입력하거나 파일을 첨부해 주세요.');return}
 
   $('gbtn').disabled=true;
   $('out').style.display='none';
@@ -1164,12 +1268,16 @@ async function gen(){
     const bannedRule = bannedList.length ? `
 - 아래 표현/단어는 절대 사용하지 말 것 (브랜드 프로필에 등록된 금칙어): ${bannedList.join(', ')}` : '';
 
+    // 첨부 파일 → 프롬프트에 반영 (텍스트 추출본은 그대로 삽입 / PDF·이미지는 별도 content block으로 함께 전달)
+    const fileTextSection = uploadedFileText ? `\n\n[첨부 파일 내용 — 이 내용을 ${topic?'주제 설명과 함께 참고해서':'바탕으로, 주제가 따로 없으니 핵심 주제를 스스로 판단해서'} 카드뉴스를 구성해줘]\n${uploadedFileText}` : '';
+    const fileBlockSection = uploadedFileBlock ? `\n\n[첨부 파일 — 함께 전달된 ${uploadedFileKind==='pdf'?'PDF':'이미지'} 파일을 읽고, ${topic?'주제 설명과 함께 참고해서':'주제가 따로 없으니 그 내용에서 핵심 주제를 스스로 판단해서'} 카드뉴스를 구성해줘]` : '';
+
     const claudePrompt=`카드뉴스 ${N}장을 아래 JSON 형식으로만 반환해줘. 마크다운/설명 없이 JSON만.
 
-주제: ${topic}
+주제: ${topic||'(첨부 파일 내용 참고)'}
 핵심 메시지: ${keymsg||'없음'}
 발신: ${brand}
-출력 형태: ${mode.label}${fixedChar?`\n등장인물(고정 · imgPrompt에 외형을 다시 묘사하지 말고 상황에만 참고): ${fixedChar}`:''}${refNotes?`\n\n[생성 시 참고사항 — 반드시 반영]\n${refNotes}`:''}
+출력 형태: ${mode.label}${fixedChar?`\n등장인물(고정 · imgPrompt에 외형을 다시 묘사하지 말고 상황에만 참고): ${fixedChar}`:''}${refNotes?`\n\n[생성 시 참고사항 — 반드시 반영]\n${refNotes}`:''}${fileTextSection}${fileBlockSection}
 
 아래 스토리 구성을 반드시 따라줘:
 ${planInstructions}
@@ -1188,8 +1296,16 @@ ${jsonExample}
 - 지정 안 된 부분은 주제와 전체 흐름에 맞게 자연스럽게 작성
 - 톤이 지정된 경우 해당 톤으로 텍스트 작성`;
 
-    // 1) 텍스트
-    const cd = await genSlidesText(claudePrompt);
+    // 1) 텍스트 (PDF/이미지 첨부 시 document/image content block을 프롬프트와 함께 전달)
+    let cd;
+    if(uploadedFileBlock){
+      const block = uploadedFileKind==='pdf'
+        ? {type:'document', source:{type:'base64', media_type:'application/pdf', data:uploadedFileBlock.data}}
+        : {type:'image', source:{type:'base64', media_type:uploadedFileBlock.mediaType, data:uploadedFileBlock.data}};
+      cd = await genSlidesText([block, {type:'text', text:claudePrompt}]);
+    }else{
+      cd = await genSlidesText(claudePrompt);
+    }
     slides = cd.slides||[];
     charDesign = fixedChar || ((useImg && cd.characters) ? String(cd.characters).trim() : '');
     slides.forEach(s=>{ s.textOnly = !useImg; });

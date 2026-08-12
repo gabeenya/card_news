@@ -39,8 +39,10 @@ Deno.serve(async (req) => {
     }
 
     // 2) Anthropic 호출 (키는 서버 시크릿)
-    const { prompt, model, max_tokens } = await req.json();
-    if (!prompt) return json({ error: "prompt가 비었습니다." }, 400);
+    // content: 파일 첨부(PDF/이미지) 시 클라이언트가 보내는 content block 배열. 없으면 prompt(문자열) 사용.
+    const { prompt, content, model, max_tokens } = await req.json();
+    const userContent = content ?? prompt;
+    if (!userContent) return json({ error: "prompt가 비었습니다." }, 400);
 
     const r = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -52,7 +54,7 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         model: model || "claude-sonnet-4-6",
         max_tokens: max_tokens || 4000,
-        messages: [{ role: "user", content: prompt }],
+        messages: [{ role: "user", content: userContent }],
       }),
     });
 
